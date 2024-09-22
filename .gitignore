@@ -1,5 +1,8 @@
 # Proyecto
 .vscode
+local/
+mentre/dags/local/
+mentre/logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

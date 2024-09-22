@@ -1,0 +1,1 @@
+DELETE "{DB_SCHEMA}".{DB_TABLE};
