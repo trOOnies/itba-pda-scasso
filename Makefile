@@ -33,6 +33,7 @@ venv: ## Create venv
 
 install: ## Install the dependencies
 	python3 -m pip install -r mentre/requirements.txt
+	python3 -m pip install -r mentre/requirements_test.txt
 
 fmt: ## [ruff] Format the code
 	ruff format

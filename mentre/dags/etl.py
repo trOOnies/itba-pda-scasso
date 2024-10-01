@@ -23,7 +23,6 @@ with DAG(
     # start_date=datetime(2024, 1, 1),
     # catchup=False,
 ) as dag:
-    # pass
     extract_task = PythonOperator(
         task_id="extract_data",
         python_callable=extract_data,

@@ -1,14 +1,13 @@
 """ETL Airflow functions."""
 
 import datetime as dt
+import logging
 import os
 import pandas as pd
 import requests
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
-
-import logging
 
 logger = logging.getLogger(__name__)
 
