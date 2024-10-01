@@ -11,6 +11,9 @@ RUN pip install wheel
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+COPY .env .env
+ENV $(cat .env | xargs)
+
 ARG PROJECT_ROOT=/opt/airflow/dags
 ENV PYTHONPATH=${PROJECT_ROOT}
 WORKDIR ${PROJECT_ROOT}

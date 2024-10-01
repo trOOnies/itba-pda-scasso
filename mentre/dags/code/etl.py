@@ -18,7 +18,7 @@ def extract_data(**kwargs) -> str:
     logging.info("[START] EXTRACT DATA")
 
     extracted_fd_path = kwargs["extracted_fd_path"]
-    assert os.path.isdir(extracted_fd_path)
+    assert os.path.isdir(extracted_fd_path), f"Path not found: {extracted_fd_path}"
     path = os.path.join(
         extracted_fd_path,
         f"extracted_data_{dt.date.today()}.pq",
@@ -51,7 +51,7 @@ def transform_data(**kwargs) -> str:
     df = pd.read_parquet(path_df)
 
     transformed_fd_path = kwargs["transformed_fd_path"]
-    assert os.path.isdir(transformed_fd_path)
+    assert os.path.isdir(transformed_fd_path), f"Path not found: {transformed_fd_path}"
     transformed_path = os.path.join(
         transformed_fd_path,
         f"transformed_data_{dt.date.today()}.pq",

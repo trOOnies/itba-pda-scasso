@@ -10,8 +10,11 @@ Nuestra base de datos se encuentra en Redshift, y queremos desarrollar un ETL ba
 
 ## Stack tecnológico
 
-...
-
+- Docker
+- Python
+    - Airflow
+    - Pytest
+    - SQLAlchemy
 
 ## Composición del repositorio
 

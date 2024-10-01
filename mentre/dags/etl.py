@@ -15,10 +15,10 @@ REDSHIFT_TABLE = "example_table"
 
 with DAG(
     "etl_redshift",
+    description="ETL pipeline for Mentre data in Redshift",
     # default_args={
     #     "retries": 1,
     # },
-    description="ETL pipeline for Mentre data in Redshift",
     # schedule_interval="@hourly",
     # start_date=datetime(2024, 1, 1),
     # catchup=False,

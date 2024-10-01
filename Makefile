@@ -32,7 +32,7 @@ venv: ## Create venv
 	@echo "${COLOUR_GREEN}Use the command: source .venv/bin/activate${COLOUR_GREEN}"
 
 install: ## Install the dependencies
-	python3 -m pip install -r requirements.txt
+	python3 -m pip install -r mentre/requirements.txt
 
 fmt: ## [ruff] Format the code
 	ruff format
