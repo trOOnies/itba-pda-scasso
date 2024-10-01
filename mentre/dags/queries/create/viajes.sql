@@ -21,5 +21,7 @@ CREATE TABLE IF NOT EXISTS "{DB_SCHEMA}".viajes (
     precio_neto_usuario  DECIMAL(10, 2),
     comision_driver      DECIMAL(10, 2),
     margen_mentre        DECIMAL(10, 2),
-    PRIMARY KEY(id)
+    PRIMARY KEY(id),
+    FOREIGN KEY(driver_id) references "{DB_SCHEMA}".drivers(id),
+    FOREIGN KEY(usuario_id) references "{DB_SCHEMA}".usuarios(id)
 );
