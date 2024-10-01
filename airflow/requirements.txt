@@ -1,0 +1,9 @@
+# apache-airflow==2.10.1
+numpy==1.26.4
+pandas==1.5.3
+# psycopg2-binary==2.9.9
+# pytest==8.3.3
+# requests==2.32.3
+# ruff==0.6.5
+# SQLAlchemy==1.4.53
+# sqlalchemy-redshift==0.8.14
