@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 KEYWORDS_PATT = re.compile(r"\{[A-Z\_]+\}")
 
 
-def ddl_query(filename: str):
+def ddl_query(statement: str, filename: str):
+    statement_ = statement.lower()
+    assert statement_ in {"create", "delete", "drop"}, "Only certain DDL statements are allowed."
+
     assert filename.endswith(".sql")
     assert "." not in filename[:-4]
     assert "~" not in filename[:-4]
@@ -21,7 +24,7 @@ def ddl_query(filename: str):
         logging.info("[START] REDSHIFT QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
 
-        with open(f"queries/{filename}") as f:
+        with open(f"queries/{statement_}/{filename}") as f:
             tables_query = f.read()
 
         keywords = KEYWORDS_PATT.findall(tables_query)
@@ -43,7 +46,7 @@ def select_query(filename: str):
         logging.info("[START] REDSHIFT QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
 
-        with open(f"queries/{filename}") as f:
+        with open(f"queries/select/{filename}") as f:
             tables_query = f.read()
 
         keywords = KEYWORDS_PATT.findall(tables_query)

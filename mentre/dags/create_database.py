@@ -17,23 +17,23 @@ with DAG(
 
     create_drivers_task = PythonOperator(
         task_id="create_drivers",
-        python_callable=ddl_query("create_drivers.sql"),
+        python_callable=ddl_query("create", "drivers.sql"),
     )
     create_usuarios_task = PythonOperator(
         task_id="create_usuarios",
-        python_callable=ddl_query("create_usuarios.sql"),
+        python_callable=ddl_query("create", "usuarios.sql"),
     )
     create_viajes_task = PythonOperator(
         task_id="create_viajes",
-        python_callable=ddl_query("create_viajes.sql"),
+        python_callable=ddl_query("create", "viajes.sql"),
     )
     create_viajes_eventos_task = PythonOperator(
         task_id="create_viajes_eventos",
-        python_callable=ddl_query("create_viajes_eventos.sql"),
+        python_callable=ddl_query("create", "viajes_eventos.sql"),
     )
     create_clima_task = PythonOperator(
         task_id="create_clima",
-        python_callable=ddl_query("create_clima.sql"),
+        python_callable=ddl_query("create", "clima.sql"),
     )
 
     try_redshift_connection_task >> create_clima_task
