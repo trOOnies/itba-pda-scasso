@@ -11,7 +11,7 @@ from code.database_funcs import ddl_query, select_query
 
 with DAG(
     "drop_db_redshift",
-    description="Create the necessary tables for Mentre in Redshift",
+    description="Drop tables in Redshift",
 ) as dag:
     try_redshift_connection_task = PythonOperator(
         task_id="try_redshift_connection_task",

@@ -19,3 +19,7 @@ Nuestra base de datos se encuentra en Redshift, y queremos desarrollar un ETL ba
 ## Composición del repositorio
 
 ...
+
+## Recursos utilizados
+
+- [Spanish Names](https://github.com/marcboquet/spanish-names)

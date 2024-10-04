@@ -10,7 +10,7 @@ DIR_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
     "local",
 )
-REDSHIFT_TABLE = "example_table"
+REDSHIFT_TABLE = "clima"
 
 
 with DAG(
