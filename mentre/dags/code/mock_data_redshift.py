@@ -1,33 +1,41 @@
 """Functions for creating mock data in Redshift."""
 
+import datetime as dt
 import logging
-import os
 import numpy as np
+import os
 import pandas as pd
 from random import randint
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
 from code.database_funcs import execute_query
-from code.mock_rows import mock_driver, mock_usuario, mock_viaje
+from code.mock_rows import mock_viaje
+from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TRIP_END
 
 logger = logging.getLogger(__name__)
 
 
+# * Generic functions
+
+
 def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
     """Save mock data to local CSV folder and to SQL."""
-    path = f"dags/local/mocked_{table_name}.csv"
+    logging.info(f"Loading transformed data in table {table_name}...")
+    path = f"local/mocked_{table_name}.csv"
+
     df.to_csv(path, index=False)
     df.to_sql(
         schema=os.environ["DB_SCHEMA"],
         name=table_name,
         con=engine,
-        if_exists="replace",
+        if_exists="append",
         index=False,
         method="multi",
     )
     logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
+
     return path
 
 
@@ -54,11 +62,11 @@ def mock_base(
     result = result.first()[0]
     assert not result, f"The table '{table_name}' exists but it's already full."
 
+    
+    logging.info(f"Creando items para {table_name}...")
     n_items = randint(n_min, n_max)
-    df = pd.DataFrame(
-        [mock_f() for _ in range(n_items)],
-        columns=cols,
-    )
+    df = mock_f(n_items)
+    logging.info(f"Items para {table_name} creados.")
 
     path = save_mock(df, table_name, engine)
 
@@ -66,62 +74,35 @@ def mock_base(
     return path
 
 
-def mock_drivers() -> str:
-    """Mock drivers table."""
-    return mock_base(
-        "drivers",
-        n_min=100,
-        n_max=300,
-        mock_f=mock_driver,
-        cols=[
-            "id",
-            "nombre",
-            "apellido",
-            "genero",
-            "fecha_registro",
-            "fecha_bloqueo",
-            "direccion_provincia",
-            "direccion_ciudad",
-            "direccion_calle",
-            "direccion_altura",
-            "categoria",
-        ],
-    )
+# * Specific functions
 
 
-def mock_usuarios() -> str:
-    """Mock users table."""
-    return mock_base(
-        "usuarios",
-        n_min=50_000,
-        n_max=100_000,
-        mock_f=mock_usuario,
-        cols=[
-            "id",
-            "nombre",
-            "apellido",
-            "genero",
-            "fecha_registro",
-            "fecha_bloqueo",
-            "tipo_premium",
-        ],
-    )
+def get_usuarios(path: str) -> pd.DataFrame:
+    """Get users for mock_viajes task."""
+    usuarios = pd.read_csv(path, usecols=["id"])
+    usuarios = usuarios.sample(frac=0.75, replace=False)
+    return usuarios
 
 
-def mock_viajes(**kwargs) -> str:
-    """Mock trips table."""
-    path_drivers = kwargs["ti"].xcom_pull(task_ids="mock_drivers")
-    path_usuarios = kwargs["ti"].xcom_pull(task_ids="mock_usuarios")
+def preprocess_usuarios(usuarios: pd.DataFrame, n_extra_viajes: int) -> pd.DataFrame:
+    """Preprocess users for mock_viajes task."""
+    usuarios = pd.concat(
+        (
+            usuarios["id"],
+            usuarios["id"].sample(n=n_extra_viajes, replace=True),
+        ),
+        ignore_index=True,
+    ).sample(frac=1, replace=False)
+    usuarios = usuarios.rename({"id": "usuario_id"}, axis=1)
+    return usuarios
 
-    drivers = pd.read_csv(path_drivers, usecols=["id", "categoria"])
+
+def get_preprocess_drivers(path: str, n_extra_viajes: int) -> pd.DataFrame:
+    """Get and preprocess drivers for mock_viajes task."""
+    drivers = pd.read_csv(path, usecols=["id", "categoria"])
     drivers["is_comfort"] = drivers["categoria"] == TIPO_CATEGORIA.COMFORT
     drivers = drivers.drop("categoria", axis=1)
     drivers = drivers.sample(frac=0.95, replace=False)
-
-    usuarios = pd.read_csv(path_usuarios, usecols=["id"])
-    usuarios = usuarios.sample(frac=0.75, replace=False)
-
-    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
 
     drivers = pd.concat(
         (
@@ -132,15 +113,11 @@ def mock_viajes(**kwargs) -> str:
     ).sample(frac=1, replace=False)
     drivers = drivers.rename({"id": "driver_id"}, axis=1)
 
-    usuarios = pd.concat(
-        (
-            usuarios["id"],
-            usuarios["id"].sample(n=n_extra_viajes, replace=True),
-        ),
-        ignore_index=True,
-    ).sample(frac=1, replace=False)
-    usuarios = usuarios.rename({"id": "usuario_id"}, axis=1)
+    return drivers
 
+
+def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.DataFrame:
+    """Merge drivers and users for the mock_viajes task."""
     viajes = pd.DataFrame([drivers, usuarios])
     viajes = pd.concat(
         (
@@ -178,40 +155,21 @@ def mock_viajes(**kwargs) -> str:
     )
     viajes = viajes.sort_values("tiempo_inicio", axis=1)
     viajes["id"] = range(viajes.shape[0])
-
-    engine = create_engine(REDSHIFT_CONN_STR)
-    path = save_mock(viajes, "viajes", engine)
-
-    return path
+    return viajes
 
 
-def mock_viajes_eventos(**kwargs):
-    """Mock trips events table."""
-    path_viajes = kwargs["ti"].xcom_pull(task_ids="mock_viajes")
-    viajes = pd.read_csv(
-        path_viajes,
-        usecols=["id"] + TRIP_END.ALL_CLOSED,
-    )
-
-    viajes["last_evento_id"] = pd.from_dummies(
-        viajes[TRIP_END.ALL_CLOSED],
-        default_category=TRIP_END.ABIERTO,
-    )
-    viajes = viajes.drop(TRIP_END.ALL_CLOSED, axis=1)
-
-    eventos_start = pd.concat(
+def get_eventos_start(viajes: pd.DataFrame) -> pd.DataFrame:
+    """Get ride start events."""
+    viajes_len = viajes.shape[0]
+    return pd.concat(
         (
             viajes["id"].rename("id_viaje"),
             pd.Series(
-                np.zeros_like(viajes["id"].values, dtype=int),
+                np.zeros_like(viajes_len, dtype=int),
                 name="id_ord",
             ),
             pd.Series(
-                np.full_like(
-                    viajes["id"].values,
-                    TRIP_END.TO_EVENTO_ID[TRIP_END.ABIERTO],
-                    dtype=int,
-                ),
+                TRIP_END.event_array(viajes_len, TRIP_END.ABIERTO),
                 name="evento_id",
             ),
             viajes["tiempo_inicio"].rename("tiempo_evento"),
@@ -219,46 +177,120 @@ def mock_viajes_eventos(**kwargs):
         ignore_index=True,
     )
 
-    # TODO: Other kind of events, but event=last
-    for ... in TRIP_END.ALL_CLOSED_NOT_OK:
-        ...
 
-    # TODO: Other kind of events, but event!=last
-    # Take into account as well that there could have been further event changes,
-    # like errors and that
-    ...
+def get_end_canceled_rides(viajes: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Get ride cancelation events."""
+    eventos_not_ok_final = {}
+    for event in TRIP_END.ALL_CLOSED_NOT_OK:
+        viajes_i = viajes[
+            viajes["last_evento_id"] == TRIP_END.TO_EVENTO_ID[event]
+        ]
 
-    # TODO: Concat all eventos (excluding Cerrado)
-    eventos = pd.concat(
+        viajes_i_len = viajes_i.shape[0]
+        eventos_not_ok_final[event] = pd.concat(
+            (
+                viajes_i["id"].rename("id_viaje"),
+                pd.Series(
+                    np.ones_like(viajes_i_len, dtype=int),
+                    name="id_ord",
+                ),
+                pd.Series(
+                    TRIP_END.event_array(viajes_i_len, event),
+                    name="evento_id",
+                ),
+                (
+                    viajes_i["tiempo_inicio"].rename("tiempo_evento")
+                    + pd.Series(
+                        [dt.timedelta(seconds=randint(15, 1200)) for _ in range(viajes_i_len)]
+                    )
+                ),
+            ),
+            ignore_index=True,
+        )
+        del viajes_i
+    return eventos_not_ok_final
+
+
+def split_viajes_cerrado(viajes: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Closed rides: They can either be corrected as closed, or directly closed (the usual)."""
+    mask = viajes["last_evento_id"] == TRIP_END.TO_EVENTO_ID[TRIP_END.CERRADO]
+    viajes_cerrado = viajes[mask]
+    mask_corrected_as_cerrado = np.random.random(viajes_cerrado.shape[0]) < 0.10
+    return (
+        viajes_cerrado[mask_corrected_as_cerrado],
+        viajes_cerrado[~mask_corrected_as_cerrado],
+    )
+
+
+def get_eventos_uncorrected(viajes_cerrado_corrected: pd.DataFrame) -> pd.DataFrame:
+    """Get ride cancelation events that later ended up in closed rides."""
+    viajes_cerrado_corrected_len = viajes_cerrado_corrected.shape[0]
+    return pd.concat(
         (
-            eventos_start,
-            ...,
+            viajes_cerrado_corrected["id"].rename("id_viaje"),
+            pd.Series(
+                np.ones_like(viajes_cerrado_corrected_len, dtype=int),
+                name="id_ord",
+            ),
+            pd.Series(
+                random_categories_array(
+                    viajes_cerrado_corrected_len,
+                    {
+                        TRIP_END.CANCELADO_USUARIO: 0.25,
+                        TRIP_END.CANCELADO_DRIVER: 0.50,
+                        TRIP_END.CANCELADO_MENTRE: 0.75,
+                        TRIP_END.OTROS: 1.00,
+                    },
+                    TRIP_END.TO_EVENTO_ID,
+                ),
+                name="evento_id",
+            ),
+            (
+                viajes_cerrado_corrected["tiempo_inicio"]
+                + dt.timedelta(seconds=viajes_cerrado_corrected["duracion_viaje"] / 2)
+            ).rename("tiempo_evento"),
         ),
         ignore_index=True,
-    ).sort_values("tiempo_evento", ignore_index=True)
+    )
 
-    # TODO: Cerrado
-    viajes_cerrado = viajes[
-        viajes["last_evento_id"] == TRIP_END.TO_EVENTO_ID[TRIP_END.CERRADO]
-    ]
-    eventos_end = pd.concat(
+
+def get_eventos_corrected(viajes_cerrado_corrected: pd.DataFrame) -> pd.DataFrame:
+    """Get ride end events that are corrections after a ride cancelation."""
+    viajes_cerrado_corrected_len = viajes_cerrado_corrected.shape[0]
+    return pd.concat(
+        (
+            viajes_cerrado_corrected["id"].rename("id_viaje"),
+            pd.Series(
+                np.full_like(viajes_cerrado_corrected_len, 2, dtype=int),
+                name="id_ord",
+            ),
+            pd.Series(
+                TRIP_END.event_array(viajes_cerrado_corrected_len, TRIP_END.CERRADO),
+                name="evento_id",
+            ),
+            viajes_cerrado_corrected["tiempo_fin"].rename("tiempo_evento"),
+        ),
+        ignore_index=True,
+    )
+
+
+def get_eventos_end(viajes_cerrado: pd.DataFrame) -> pd.DataFrame:
+    """Get ride end normal events, that is, straight from ride start to ride end
+    without any other event.
+    """
+    viajes_cerrado_len = viajes_cerrado.shape[0]
+    return pd.concat(
         (
             viajes_cerrado["id"].rename("id_viaje"),
-            ...,  # TODO: get last id_ord for each one
             pd.Series(
-                np.full_like(
-                    viajes_cerrado["id"].values,
-                    TRIP_END.TO_EVENTO_ID[TRIP_END.CERRADO],
-                    dtype=int,
-                ),
+                np.ones_like(viajes_cerrado_len, dtype=int),
+                name="id_ord",
+            ),
+            pd.Series(
+                TRIP_END.event_array(viajes_cerrado_len, TRIP_END.CERRADO),
                 name="evento_id",
             ),
             viajes_cerrado["tiempo_fin"].rename("tiempo_evento"),
         ),
         ignore_index=True,
     )
-
-    # TODO: Concat with the others
-
-    engine = create_engine(REDSHIFT_CONN_STR)
-    save_mock(eventos, "viajes_eventos", engine)

@@ -4,7 +4,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import os
 
-from code.etl import extract_data, transform_data, load_to_redshift
+from tasks.etl import extract_data, transform_data, load_to_redshift
 
 DIR_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),

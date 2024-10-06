@@ -7,8 +7,6 @@ from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
 
-logger = logging.getLogger(__name__)
-
 KEYWORDS_PATT = re.compile(r"\{[A-Z\_]+\}")
 
 
@@ -22,13 +20,15 @@ def execute_query(
     with open(f"queries/{statement}/{filename}") as f:
         query = f.read()
     if prev_kwargs is not None:
-        query = query.replace(**prev_kwargs)
+        for old, new in prev_kwargs.items():
+            query = query.replace("{" + old + "}", new)
 
     keywords = KEYWORDS_PATT.findall(query)
     if keywords:
         query = query.format(**{k[1:-1]: os.environ[k[1:-1]] for k in keywords})
 
-    return engine.execute(query)
+    result = engine.execute(query)
+    return result
 
 
 def ddl_query(statement: str, filename: str):
@@ -41,10 +41,10 @@ def ddl_query(statement: str, filename: str):
     assert "~" not in filename[:-4]
 
     def run_query() -> None:
-        logging.info("[START] REDSHIFT QUERY")
+        logging.info(f"[START] REDSHIFT {statement_.upper()} QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
         execute_query(engine, statement_, filename)
-        logging.info("[END] REDSHIFT QUERY")
+        logging.info(f"[END] REDSHIFT {statement_.upper()} QUERY")
 
     return run_query
 
@@ -59,10 +59,10 @@ def dml_query(statement: str, filename: str):
     assert "~" not in filename[:-4]
 
     def run_query() -> None:
-        logging.info("[START] REDSHIFT QUERY")
+        logging.info(f"[START] REDSHIFT {statement_.upper()} QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
         execute_query(engine, statement_, filename)
-        logging.info("[END] REDSHIFT QUERY")
+        logging.info(f"[END] REDSHIFT {statement_.upper()} QUERY")
 
     return run_query
 
@@ -73,11 +73,11 @@ def select_query(filename: str):
     assert "~" not in filename[:-4]
 
     def run_query() -> None:
-        logging.info("[START] REDSHIFT QUERY")
+        logging.info("[START] REDSHIFT SELECT QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
         result = execute_query(engine, "select", filename)
         result = result.fetchall()
         logging.info(result)
-        logging.info("[END] REDSHIFT QUERY")
+        logging.info("[END] REDSHIFT SELECT QUERY")
 
     return run_query

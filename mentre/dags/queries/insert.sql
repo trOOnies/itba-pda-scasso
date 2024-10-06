@@ -1,4 +1,4 @@
-INSERT INTO drivers (...)
+INSERT INTO "{DB_SCHEMA}".drivers (...)
 VALUES
 (...),
 (...),

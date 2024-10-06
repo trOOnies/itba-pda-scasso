@@ -1,3 +1,5 @@
+import numpy as np
+
 ABIERTO           = "abierto"
 
 CERRADO           = "end_cerrado"
@@ -7,7 +9,6 @@ CANCELADO_MENTRE  = "end_cancelado_mentre"
 OTROS             = "end_otros"
 
 ALL_CLOSED_NOT_OK = [
-    CERRADO,
     CANCELADO_USUARIO,
     CANCELADO_DRIVER,
     CANCELADO_MENTRE,
@@ -24,3 +25,11 @@ TO_EVENTO_ID = {
     CANCELADO_MENTRE: 4,
     OTROS: 999,
 }
+
+
+def event_array(shape, event_id: int) -> np.ndarray:
+    return np.full(
+        shape,
+        TO_EVENTO_ID[event_id],
+        dtype=int,
+    )

@@ -1,44 +1,61 @@
 import datetime as dt
 from math import sqrt
+import numpy as np
 import pandas as pd
 from random import randint, random
 
-from code.utils import random_category
+from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TIPO_PREMIUM, TRIP_END
 
 
-def get_random_name(ref: str) -> str:
+def get_random_names(ref: str, n: int) -> pd.DataFrame:
     assert ref in {"apellidos", "hombres", "mujeres"}
     df = pd.read_csv(f"mock/{ref}.csv")
-    total_rows = df.shape[0]
     col = "apellido" if ref == "apellidos" else "nombre"
-    return df[col].iat[randint(0, total_rows - 1)]
+    return df[col].sample(n, replace=True)
 
 
-def get_random_prov() -> str:
+def get_random_provs(n: int) -> pd.DataFrame:
     df = pd.read_csv("tables/provincias.csv")
-    total_rows = df.shape[0]
-    return df["nombre"].iat[randint(0, total_rows - 1)]
+    return df["nombre"].sample(n, replace=True)
 
 
-def mock_person(m_thresh: float, f_thresh: float) -> tuple:
-    """Create information for a mock person."""
+def mock_persons(n: int, m_thresh: float, f_thresh: float) -> pd.DataFrame:
+    """Create information for n mock persons.
+    M = Male (man), F = Female (woman), X = Non-binary.
+    """
     assert 0.00 < m_thresh
     assert m_thresh < f_thresh
     assert f_thresh < 1.00
 
-    genero = random_category({"M": m_thresh, "F": f_thresh, "X": 1.00})
-    nombre = (
-        get_random_name("hombres")
-        if genero == "M" or ((genero == "X") and random() < 0.5)
-        else get_random_name("mujeres")
+    df = pd.DataFrame(
+        random_categories_array(n, {"M": m_thresh, "F": f_thresh, "X": 1.00}),
+        columns=["genero"],
     )
-    apellido = get_random_name("apellidos")
+    non_binary_w_men_name = np.random.random(n)
 
-    fecha_registro = "2024-01-01"
-    fecha_bloqueo = "2024-02-01" if random() < 0.15 else None
+    mixed_names = np.hstack(
+        (
+            get_random_names("mujeres", n),
+            get_random_names("hombres", n),
+        )
+    )
+    assert mixed_names.shape[1] == 2
+    mask_man = np.logical_or(
+        (df["genero"] == "M").values,
+        non_binary_w_men_name,
+    ).astype(int)
 
-    return nombre, apellido, genero, fecha_registro, fecha_bloqueo
+    df["nombre"] = mixed_names[:, mask_man]
+    df["apellido"] = get_random_names("apellidos", n)
+
+    df["fecha_registro"] = np.full(n, "2024-01-01", dtype=str)
+
+    df["fecha_bloqueo"] = np.full(n, "2024-02-01", dtype=str)
+    mask_blocked = (np.random.random(n)) < 0.15
+    df["fecha_bloqueo"][mask_blocked] = None
+
+    return df
 
 
 def mock_geolocations() -> tuple[dict, int]:
@@ -121,51 +138,39 @@ def mock_financial(distance_m: int, is_comfort: bool) -> list[float]:
 # * Item mock functions
 
 
-def mock_driver() -> list:
+def mock_drivers_f(n: int) -> pd.DataFrame:
     """Create information for a mock driver."""
-    nombre, apellido, genero, fecha_registro, fecha_bloqueo = mock_person(0.80, 0.99)
+    df = mock_persons(n, m_thresh=0.80, f_thresh=0.99)
 
-    return [
-        randint(0, 100_000_000), # id
-        nombre,                  # nombre
-        apellido,                # apellido
-        genero,                  # genero
-        fecha_registro,          # fecha_registro
-        fecha_bloqueo,           # fecha_bloqueo
-        get_random_prov(),       # direccion_provincia
-        "CIUDAD",                # direccion_ciudad
-        "CALLE",                 # direccion_calle
-        randint(1, 10_000),      # direccion_altura
-        (
-            TIPO_CATEGORIA.STANDARD
-            if random() < 0.9
-            else TIPO_CATEGORIA.COMFORT
-        ),                       # categoria
-    ]
+    df["id"] = np.random.randint(0, 100_000_000, size=n)
+    df["direccion_altura"] = np.random.randint(1, 10_000, size=n)
+    df.loc[:, "direccion_ciudad"] = "CIUDAD"
+    df.loc[:, "direccion_calle"] = "CALLE"
+    df["categoria"] = random_categories_array(
+        n,
+        {TIPO_CATEGORIA.STANDARD: 0.9, TIPO_CATEGORIA.COMFORT: 1.0},
+    )
+    df["direccion_provincia"] = get_random_provs(n)
+
+    return df
 
 
-def mock_usuario() -> list:
+def mock_usuario_f(n: int) -> pd.DataFrame:
     """Create information for a mock user."""
-    nombre, apellido, genero, fecha_registro, fecha_bloqueo = mock_person(0.65, 0.99)
+    df = mock_persons(n, m_thresh=0.65, f_thresh=0.99)
 
-    tipo_premium = random_category(
+    df["id"] = np.random.randint(0, 100_000_000, size=n)
+    df["tipo_premium"] = random_categories_array(
+        n,
         {
             TIPO_PREMIUM.STANDARD: 0.80,
             TIPO_PREMIUM.GOLD: 0.90,
             TIPO_PREMIUM.BLACK: 0.99,
             TIPO_PREMIUM.CORTESIA: 1.00,
-        }
+        },
     )
 
-    return [
-        randint(0, 100_000_000), # id
-        nombre,                  # nombre
-        apellido,                # apellido
-        genero,                  # genero
-        fecha_registro,          # fecha_registro
-        fecha_bloqueo,           # fecha_bloqueo
-        tipo_premium,            # tipo_premium
-    ]
+    return df
 
 
 def mock_viaje(is_comfort: bool) -> list:

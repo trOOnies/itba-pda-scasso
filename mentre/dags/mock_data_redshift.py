@@ -7,7 +7,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 from code.database_funcs import select_query
-from code.mock_data_redshift import (
+from tasks.mock_data_redshift import (
     mock_drivers,
     mock_usuarios,
     mock_viajes,

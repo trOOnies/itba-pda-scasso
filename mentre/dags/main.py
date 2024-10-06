@@ -1,6 +1,6 @@
 import os
 
-from code.etl import extract_data, load_to_redshift, transform_data
+from tasks.etl import extract_data, load_to_redshift, transform_data
 
 
 def main():

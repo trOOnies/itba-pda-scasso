@@ -1,6 +1,6 @@
 id,nombre,proba
-0,Buenos Aires,0.35
-1,Ciudad Autónoma de Buenos Aires,0.60
+0,Provincia de Buenos Aires,0.35
+1,CABA,0.60
 2,Catamarca,
 3,Chaco,
 4,Chubut,
@@ -21,5 +21,5 @@ id,nombre,proba
 19,Santa Cruz,
 20,Santa Fe,
 21,Santiago del Estero,
-22,Tierra del Fuego Antártida e Islas del Atlántico Sur,
+22,Tierra del Fuego Antártida e IAS,
 23,Tucumán,
