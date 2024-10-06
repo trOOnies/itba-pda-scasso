@@ -1,9 +1,11 @@
 # Proyecto
 .vscode
 ./local/
+local/*/*.csv
+local/*/*.pq
+mentre/logs/
 mentre/dags/local/*.csv
 mentre/dags/local/*.pq
-mentre/logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

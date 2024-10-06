@@ -7,7 +7,12 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 from code.database_funcs import select_query
-from code.mock_data_redshift import mock_drivers, mock_usuarios
+from code.mock_data_redshift import (
+    mock_drivers,
+    mock_usuarios,
+    mock_viajes,
+    mock_viajes_eventos,
+)
 
 
 with DAG(
@@ -27,9 +32,14 @@ with DAG(
         task_id="mock_usuarios",
         python_callable=mock_usuarios,
     )
-    # mock_viajes_and_eventos_task = PythonOperator(
-    #     task_id="mock_viajes_and_eventos",
-    #     python_callable=mock_viajes_and_eventos,
-    # )
+    mock_viajes_task = PythonOperator(
+        task_id="mock_viajes",
+        python_callable=mock_viajes,
+    )
+    mock_viajes_eventos_task = PythonOperator(
+        task_id="mock_viajes_eventos",
+        python_callable=mock_viajes_eventos,
+    )
 
-    try_redshift_connection_task >> [mock_drivers_task, mock_usuarios_task]  # >> mock_viajes_and_eventos
+    try_redshift_connection_task >> [mock_drivers_task, mock_usuarios_task] >> mock_viajes_task
+    mock_viajes_task >> mock_viajes_eventos_task

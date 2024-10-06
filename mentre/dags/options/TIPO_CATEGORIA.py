@@ -1,0 +1,4 @@
+STANDARD = "Standard"
+COMFORT = "Comfort"
+
+ALL = [STANDARD, COMFORT]

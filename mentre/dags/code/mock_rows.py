@@ -4,7 +4,7 @@ import pandas as pd
 from random import randint, random
 
 from code.utils import random_category
-from options import TRIP_END
+from options import TIPO_CATEGORIA, TIPO_PREMIUM, TRIP_END
 
 
 def get_random_name(ref: str) -> str:
@@ -42,6 +42,7 @@ def mock_person(m_thresh: float, f_thresh: float) -> tuple:
 
 
 def mock_geolocations() -> tuple[dict, int]:
+    """Mock geolocation variables."""
     locs = {
         "origen_lat": 10.0 * random(),
         "origen_long": 10.0 * random(),
@@ -56,9 +57,10 @@ def mock_geolocations() -> tuple[dict, int]:
 
 
 def mock_end() -> tuple[str, list[bool], bool]:
+    """Mock trip ending related variables."""
     end_cat = random_category(
         {
-            "abierto": 0.01,
+            TRIP_END.ABIERTO: 0.01,
             TRIP_END.CERRADO: 0.75,
             TRIP_END.CANCELADO_USUARIO: 0.90,
             TRIP_END.CANCELADO_DRIVER: 0.95,
@@ -71,13 +73,26 @@ def mock_end() -> tuple[str, list[bool], bool]:
         if end_cat == TRIP_END.CERRADO
         else False
     )
-    return end_cat, [end_cat == te for te in TRIP_END.ALL], was_charged
+    return end_cat, [end_cat == te for te in TRIP_END.ALL_CLOSED], was_charged
 
 
-def mock_timestamps() -> tuple:
-    tiempo_inicio = ...  # TODO
-    duracion_viaje_seg = randint(120, 3600)
-    tiempo_fin = tiempo_inicio + dt.timedelta(seconds=duracion_viaje_seg)
+def mock_timestamps(end_cat: str) -> tuple[dt.datetime, dt.datetime | None, int | None]:
+    """Mock timestamp related variables."""
+    tiempo_inicio = (
+        dt.datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc)
+        + dt.timedelta(days=randint(0, 120))
+        + dt.timedelta(hours=randint(0, 23))
+        + dt.timedelta(minutes=randint(0, 59))
+        + dt.timedelta(seconds=randint(0, 59))
+    )
+
+    if end_cat == TRIP_END.CERRADO:
+        duracion_viaje_seg = randint(120, 3600)
+        tiempo_fin = tiempo_inicio + dt.timedelta(seconds=duracion_viaje_seg)
+    else:
+        duracion_viaje_seg = None
+        tiempo_fin = None
+
     return [tiempo_inicio, tiempo_fin, duracion_viaje_seg]
 
 
@@ -111,17 +126,21 @@ def mock_driver() -> list:
     nombre, apellido, genero, fecha_registro, fecha_bloqueo = mock_person(0.80, 0.99)
 
     return [
-        randint(0, 100_000_000),                     # id
-        nombre,                                      # nombre
-        apellido,                                    # apellido
-        genero,                                      # genero
-        fecha_registro,                              # fecha_registro
-        fecha_bloqueo,                               # fecha_bloqueo
-        get_random_prov(),                           # direccion_provincia
-        "CIUDAD",                                    # direccion_ciudad
-        "CALLE",                                     # direccion_calle
-        randint(1, 10_000),                          # direccion_altura
-        "Standard" if random() < 0.9 else "Premium", # categoria
+        randint(0, 100_000_000), # id
+        nombre,                  # nombre
+        apellido,                # apellido
+        genero,                  # genero
+        fecha_registro,          # fecha_registro
+        fecha_bloqueo,           # fecha_bloqueo
+        get_random_prov(),       # direccion_provincia
+        "CIUDAD",                # direccion_ciudad
+        "CALLE",                 # direccion_calle
+        randint(1, 10_000),      # direccion_altura
+        (
+            TIPO_CATEGORIA.STANDARD
+            if random() < 0.9
+            else TIPO_CATEGORIA.COMFORT
+        ),                       # categoria
     ]
 
 
@@ -130,7 +149,12 @@ def mock_usuario() -> list:
     nombre, apellido, genero, fecha_registro, fecha_bloqueo = mock_person(0.65, 0.99)
 
     tipo_premium = random_category(
-        {"Standard": 0.80, "Gold": 0.90, "Black": 0.99, "Cortesía": 1.00}
+        {
+            TIPO_PREMIUM.STANDARD: 0.80,
+            TIPO_PREMIUM.GOLD: 0.90,
+            TIPO_PREMIUM.BLACK: 0.99,
+            TIPO_PREMIUM.CORTESIA: 1.00,
+        }
     )
 
     return [
@@ -144,16 +168,14 @@ def mock_usuario() -> list:
     ]
 
 
-def mock_viaje(driver_id: int, usuario_id: int, is_comfort: bool) -> list:
+def mock_viaje(is_comfort: bool) -> list:
+    """Create information for a mock trip."""
     geo_locs, distancia_metros = mock_geolocations()
 
     end_cat, cats_bools, fue_facturado = mock_end()
 
     return (
         [
-            randint(0, 100_000_000),             # id
-            driver_id,                           # driver_id
-            usuario_id,                          # usuario_id
             geo_locs["origen_lat"],              # origen_lat
             geo_locs["origen_long"],             # origen_long
             geo_locs["destino_lat"],             # destino_lat
@@ -162,6 +184,6 @@ def mock_viaje(driver_id: int, usuario_id: int, is_comfort: bool) -> list:
         ]
         + cats_bools  # end_cerrado, end_cancelado_usuario, end_cancelado_driver, end_cancelado_mentre, end_otros
         + [fue_facturado]  # fue_facturado
-        + mock_timestamps()  # tiempo_inicio, tiempo_fin, duracion_viaje_seg
+        + mock_timestamps(end_cat)  # tiempo_inicio, tiempo_fin, duracion_viaje_seg
         + mock_financial(distancia_metros, is_comfort)  # precio_bruto_usuario, descuento, precio_neto_usuario, comision_driver, margen_mentre
-    )  # TODO: Continue seeing correls
+    )
