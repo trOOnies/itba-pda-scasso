@@ -1,7 +1,6 @@
 import datetime as dt
 import numpy as np
 import pandas as pd
-from random import randint, random
 
 from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TIPO_PREMIUM, TRIP_END
@@ -95,6 +94,8 @@ def mock_ends(n: int) -> pd.DataFrame:
     )
 
     df = pd.get_dummies(df)
+    df = df.rename({c: c[8:] for c in df.columns}, axis=1)  # delete 'end_cat_' prefix
+
     if TRIP_END.ABIERTO in df.columns:
         df = df.drop(TRIP_END.ABIERTO, axis=1)
     for col in TRIP_END.ALL_CLOSED:
@@ -136,11 +137,17 @@ def mock_timestamps(closed_col: pd.Series) -> pd.DataFrame:
 
 
 def mock_financials(distance_m: pd.Series, is_comfort: pd.Series) -> pd.DataFrame:
+    """Mock financial variables.
+
+    Note that a ride has a flat rate of 1.0, and it also has a distance-dependent rate.
+    """
     n = distance_m.size
+    assert n > 0
     assert is_comfort.size == n
 
-    df = pd.DataFrame(distance_m * 1.50, columns=["precio_bruto_usuario"])
+    df = pd.DataFrame(distance_m.rename("precio_bruto_usuario") * 1.50)
     df["precio_bruto_usuario"] = df["precio_bruto_usuario"] * (1.00 + is_comfort.astype(int) * 0.15)
+    df["precio_bruto_usuario"] += 1.0
 
     df["descuento_pc"] = random_categories_array(
         n,
@@ -152,7 +159,7 @@ def mock_financials(distance_m: pd.Series, is_comfort: pd.Series) -> pd.DataFram
 
     df["precio_neto_usuario"] = df["precio_bruto_usuario"] - df["descuento"]
 
-    df["mentre_margin_pc"] = 0.15 + (np.random.random(n) / 10.0)
+    df["mentre_margin_pc"] = 0.15 + (np.random.random(size=n) / 10.0)
     df["margen_mentre"] = df["precio_neto_usuario"] * df["mentre_margin_pc"]
     df["comision_driver"] = df["precio_neto_usuario"] - df["margen_mentre"]
     del df["mentre_margin_pc"]
@@ -203,14 +210,16 @@ def mock_usuarios_f(n: int) -> pd.DataFrame:
 def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
     """Create information for a mock trip."""
     n = is_comfort.size
+
     df = pd.concat(
         (
             mock_geolocations(n),
             mock_ends(n),
         ),
         axis=1,
-        ignore_index=True
     )
+    assert df.shape[0] == n
+
     df = pd.concat(
         (
             df,
@@ -218,6 +227,7 @@ def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
             mock_financials(df["distancia_metros"], is_comfort),
         ),
         axis=1,
-        ignore_index=True,
     )
+    assert df.shape[0] == n
+
     return df

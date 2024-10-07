@@ -81,3 +81,23 @@ def select_query(filename: str):
         logging.info("[END] REDSHIFT SELECT QUERY")
 
     return run_query
+
+
+def check_mock_is_full(engine, table_name: str) -> str | None:
+    """Check if the existing table is full.
+
+    Returns the CSV path if it is. Else returns None.
+    """
+    result = execute_query(
+        engine,
+        "select",
+        "check_exists.sql",
+        prev_kwargs={"DB_TABLE": table_name},
+    )
+    is_full = result.first()[0]
+    if is_full:
+        logging.info(f"The table '{table_name}' exists and it's already full. Skipping data creation.")
+        path = f"local/mocked_{table_name}.csv"
+        assert os.path.exists(path), f"Table '{table_name}' is full but local CSV doesn't exist."
+        return path
+    return None
