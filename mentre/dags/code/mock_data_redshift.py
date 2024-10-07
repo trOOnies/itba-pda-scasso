@@ -10,7 +10,7 @@ from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
 from code.database_funcs import execute_query
-from code.mock_rows import mock_viaje
+from code.mock_rows import mock_viajes_f
 from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TRIP_END
 
@@ -26,14 +26,17 @@ def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
     path = f"local/mocked_{table_name}.csv"
 
     df.to_csv(path, index=False)
-    df.to_sql(
-        schema=os.environ["DB_SCHEMA"],
-        name=table_name,
-        con=engine,
-        if_exists="append",
-        index=False,
-        method="multi",
-    )
+
+    chunksize = 1_000
+    for ix in range(0, df.shape[0], chunksize):
+        df.iloc[ix:min(ix + chunksize, df.shape[0])].to_sql(
+            schema=os.environ["DB_SCHEMA"],
+            name=table_name,
+            con=engine,
+            if_exists="append",
+            index=False,
+            method="multi",
+        )
     logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
 
     return path
@@ -44,7 +47,6 @@ def mock_base(
     n_min: int,
     n_max: int,
     mock_f,
-    cols: list[str],
 ) -> str:
     """Base function for the mocking of a table."""
     logging.info(f"[START] MOCK {table_name.upper()}")
@@ -122,33 +124,7 @@ def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.
     viajes = pd.concat(
         (
             viajes[["driver_id", "usuario_id"]],
-            pd.DataFrame(
-                [
-                    mock_viaje(is_comfort)
-                    for is_comfort in viajes["is_comfort"]
-                ],
-                columns=[
-                    "origen_lat",
-                    "origen_long",
-                    "destino_lat",
-                    "destino_long",
-                    "distancia_metros",
-                    "end_cerrado",
-                    "end_cancelado_usuario",
-                    "end_cancelado_driver",
-                    "end_cancelado_mentre",
-                    "end_otros",
-                    "fue_facturado",
-                    "tiempo_inicio",
-                    "tiempo_fin",
-                    "duracion_viaje_seg",
-                    "precio_bruto_usuario",
-                    "descuento",
-                    "precio_neto_usuario",
-                    "comision_driver",
-                    "margen_mentre",
-                ],
-            ),
+            mock_viajes_f(viajes["is_comfort"]),
         ),
         axis=1,
         ignore_index=True,
@@ -199,11 +175,12 @@ def get_end_canceled_rides(viajes: pd.DataFrame) -> dict[str, pd.DataFrame]:
                     name="evento_id",
                 ),
                 (
-                    viajes_i["tiempo_inicio"].rename("tiempo_evento")
-                    + pd.Series(
-                        [dt.timedelta(seconds=randint(15, 1200)) for _ in range(viajes_i_len)]
+                    viajes_i["tiempo_inicio"]
+                    + pd.to_timedelta(
+                        np.random.randint(15, 1200, viajes_i_len),
+                        unit="sec",
                     )
-                ),
+                ).rename("tiempo_evento"),
             ),
             ignore_index=True,
         )
@@ -241,13 +218,13 @@ def get_eventos_uncorrected(viajes_cerrado_corrected: pd.DataFrame) -> pd.DataFr
                         TRIP_END.CANCELADO_MENTRE: 0.75,
                         TRIP_END.OTROS: 1.00,
                     },
-                    TRIP_END.TO_EVENTO_ID,
+                    cat_to_id=TRIP_END.TO_EVENTO_ID,
                 ),
                 name="evento_id",
             ),
             (
                 viajes_cerrado_corrected["tiempo_inicio"]
-                + dt.timedelta(seconds=viajes_cerrado_corrected["duracion_viaje"] / 2)
+                + pd.to_timedelta(viajes_cerrado_corrected["duracion_viaje"] / 2, unit="sec")
             ).rename("tiempo_evento"),
         ),
         ignore_index=True,

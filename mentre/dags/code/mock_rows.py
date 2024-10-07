@@ -1,5 +1,4 @@
 import datetime as dt
-from math import sqrt
 import numpy as np
 import pandas as pd
 from random import randint, random
@@ -8,7 +7,7 @@ from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TIPO_PREMIUM, TRIP_END
 
 
-def get_random_names(ref: str, n: int) -> pd.DataFrame:
+def get_random_names(ref: str, n: int) -> pd.Series:
     assert ref in {"apellidos", "hombres", "mujeres"}
     df = pd.read_csv(f"mock/{ref}.csv")
     col = "apellido" if ref == "apellidos" else "nombre"
@@ -29,110 +28,136 @@ def mock_persons(n: int, m_thresh: float, f_thresh: float) -> pd.DataFrame:
     assert f_thresh < 1.00
 
     df = pd.DataFrame(
-        random_categories_array(n, {"M": m_thresh, "F": f_thresh, "X": 1.00}),
+        random_categories_array(n, {"M": m_thresh, "F": f_thresh, "X": 1.00}, cat_to_id=None),
         columns=["genero"],
     )
     non_binary_w_men_name = np.random.random(n)
 
-    mixed_names = np.hstack(
+    mixed_names = np.vstack(
         (
-            get_random_names("mujeres", n),
-            get_random_names("hombres", n),
+            get_random_names("mujeres", n).values,
+            get_random_names("hombres", n).values,
         )
     )
-    assert mixed_names.shape[1] == 2
+    assert mixed_names.shape == (2, n), f"Invalid shape: {mixed_names.shape} (exp={(2, n)})"
     mask_man = np.logical_or(
         (df["genero"] == "M").values,
         non_binary_w_men_name,
     ).astype(int)
 
-    df["nombre"] = mixed_names[:, mask_man]
-    df["apellido"] = get_random_names("apellidos", n)
+    nombre = mixed_names[mask_man, np.arange(n)]
+    assert nombre.shape == (n,), f"Invalid shape: {nombre.shape} (exp={(n,)})"
+    df["nombre"] = nombre
 
-    df["fecha_registro"] = np.full(n, "2024-01-01", dtype=str)
+    df["apellido"] = get_random_names("apellidos", n).values
 
-    df["fecha_bloqueo"] = np.full(n, "2024-02-01", dtype=str)
+    df.loc[:, "fecha_registro"] = "2024-01-01"
+
+    df.loc[:, "fecha_bloqueo"] = None
     mask_blocked = (np.random.random(n)) < 0.15
-    df["fecha_bloqueo"][mask_blocked] = None
+    df.loc[mask_blocked, "fecha_bloqueo"] = "2024-01-03"
 
     return df
 
 
-def mock_geolocations() -> tuple[dict, int]:
+def mock_geolocations(n: int) -> pd.DataFrame:
     """Mock geolocation variables."""
-    locs = {
-        "origen_lat": 10.0 * random(),
-        "origen_long": 10.0 * random(),
-        "destino_lat": 10.0 * random(),
-        "destino_long": 10.0 * random(),
-    }
-    distancia_metros = int(sqrt(
-        (locs["destino_lat"] - locs["origen_lat"])**2
-        + (locs["destino_long"] - locs["origen_long"])**2
-    ))
-    return locs, distancia_metros
+    df = pd.DataFrame(
+        10.0 * np.random.random((n, 4)),
+        columns=["origen_lat", "origen_long", "destino_lat", "destino_long"],
+    )
+
+    # Example function for distance (not accurate)
+    df["distancia_metros"] = np.sqrt(
+        np.square(df["destino_lat"] - df["origen_lat"])
+        + np.square(df["destino_long"] - df["origen_long"])
+    ).astype(int)
+
+    return df
 
 
-def mock_end() -> tuple[str, list[bool], bool]:
+def mock_ends(n: int) -> pd.DataFrame:
     """Mock trip ending related variables."""
-    end_cat = random_category(
-        {
-            TRIP_END.ABIERTO: 0.01,
-            TRIP_END.CERRADO: 0.75,
-            TRIP_END.CANCELADO_USUARIO: 0.90,
-            TRIP_END.CANCELADO_DRIVER: 0.95,
-            TRIP_END.CANCELADO_MENTRE: 0.98,
-            TRIP_END.OTROS: 1.00,
-        }
+    df = pd.DataFrame(
+        random_categories_array(
+            n,
+            {
+                TRIP_END.ABIERTO: 0.01,
+                TRIP_END.CERRADO: 0.75,
+                TRIP_END.CANCELADO_USUARIO: 0.90,
+                TRIP_END.CANCELADO_DRIVER: 0.95,
+                TRIP_END.CANCELADO_MENTRE: 0.98,
+                TRIP_END.OTROS: 1.00,
+            },
+            cat_to_id=None,
+        ),
+        columns=["end_cat"],
     )
-    was_charged = (
-        random() < 0.95
-        if end_cat == TRIP_END.CERRADO
-        else False
+
+    df = pd.get_dummies(df)
+    if TRIP_END.ABIERTO in df.columns:
+        df = df.drop(TRIP_END.ABIERTO, axis=1)
+    for col in TRIP_END.ALL_CLOSED:
+        if col not in df.columns:
+            df.loc[:, col] = False
+
+    df["fue_facturado"] = np.logical_and(
+        df[TRIP_END.CERRADO],
+        np.random.random(n) < 0.95,
     )
-    return end_cat, [end_cat == te for te in TRIP_END.ALL_CLOSED], was_charged
+
+    return df
 
 
-def mock_timestamps(end_cat: str) -> tuple[dt.datetime, dt.datetime | None, int | None]:
+def mock_timestamps(closed_col: pd.Series) -> pd.DataFrame:
     """Mock timestamp related variables."""
-    tiempo_inicio = (
-        dt.datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc)
-        + dt.timedelta(days=randint(0, 120))
-        + dt.timedelta(hours=randint(0, 23))
-        + dt.timedelta(minutes=randint(0, 59))
-        + dt.timedelta(seconds=randint(0, 59))
+    n = closed_col.size
+
+    df = pd.DataFrame(
+        (
+            np.full(n, dt.datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc))
+            + pd.to_timedelta(np.random.randint(0, 119, n), unit="days")
+            + pd.to_timedelta(np.random.randint(0, 23, n), unit="hr")
+            + pd.to_timedelta(np.random.randint(0, 59, n), unit="min")
+            + pd.to_timedelta(np.random.randint(0, 59, n), unit="sec")
+        ),
+        columns=["tiempo_inicio"],
     )
 
-    if end_cat == TRIP_END.CERRADO:
-        duracion_viaje_seg = randint(120, 3600)
-        tiempo_fin = tiempo_inicio + dt.timedelta(seconds=duracion_viaje_seg)
-    else:
-        duracion_viaje_seg = None
-        tiempo_fin = None
-
-    return [tiempo_inicio, tiempo_fin, duracion_viaje_seg]
-
-
-def mock_financial(distance_m: int, is_comfort: bool) -> list[float]:
-    base_price = distance_m * 1.50
-    if is_comfort:
-        base_price *= 1.15
-
-    discount_pc = random_category(
-        {0.00: 0.7500, 0.15: 0.9500, 0.50: 0.9900, 1.00: 1.0000}
+    df.loc[:, "duracion_viaje_seg"] = None
+    df.loc[:, "tiempo_fin"] = None
+    df["duracion_viaje_seg"][closed_col] = np.random.randint(120, 3600, closed_col.sum())
+    df["tiempo_fin"][closed_col] = df["tiempo_inicio"][closed_col] + pd.to_timedelta(
+        df["duracion_viaje_seg"][closed_col],
+        unit="sec",
     )
-    discount = discount_pc * base_price
-    net_price = base_price - discount
 
-    mentre_margin_pc = 0.15 + (random() / 10)
+    return df
 
-    return [
-        base_price,                            # precio_bruto_usuario
-        discount,                              # descuento
-        net_price,                             # precio_neto_usuario
-        net_price * (1.00 - mentre_margin_pc), # comision_driver
-        net_price * mentre_margin_pc,          # margen_mentre
-    ]
+
+def mock_financials(distance_m: pd.Series, is_comfort: pd.Series) -> pd.DataFrame:
+    n = distance_m.size
+    assert is_comfort.size == n
+
+    df = pd.DataFrame(distance_m * 1.50, columns=["precio_bruto_usuario"])
+    df["precio_bruto_usuario"] = df["precio_bruto_usuario"] * (1.00 + is_comfort.astype(int) * 0.15)
+
+    df["descuento_pc"] = random_categories_array(
+        n,
+        {0.00: 0.7500, 0.15: 0.9500, 0.50: 0.9900, 1.00: 1.0000},
+        cat_to_id=None,
+    )
+    df["descuento"] = df["descuento_pc"] * df["precio_bruto_usuario"]
+    del df["descuento_pc"]
+
+    df["precio_neto_usuario"] = df["precio_bruto_usuario"] - df["descuento"]
+
+    df["mentre_margin_pc"] = 0.15 + (np.random.random(n) / 10.0)
+    df["margen_mentre"] = df["precio_neto_usuario"] * df["mentre_margin_pc"]
+    df["comision_driver"] = df["precio_neto_usuario"] - df["margen_mentre"]
+    del df["mentre_margin_pc"]
+
+    return df
 
 
 # * Item mock functions
@@ -149,13 +174,14 @@ def mock_drivers_f(n: int) -> pd.DataFrame:
     df["categoria"] = random_categories_array(
         n,
         {TIPO_CATEGORIA.STANDARD: 0.9, TIPO_CATEGORIA.COMFORT: 1.0},
+        cat_to_id=None,
     )
-    df["direccion_provincia"] = get_random_provs(n)
+    df["direccion_provincia"] = get_random_provs(n).values
 
     return df
 
 
-def mock_usuario_f(n: int) -> pd.DataFrame:
+def mock_usuarios_f(n: int) -> pd.DataFrame:
     """Create information for a mock user."""
     df = mock_persons(n, m_thresh=0.65, f_thresh=0.99)
 
@@ -168,27 +194,30 @@ def mock_usuario_f(n: int) -> pd.DataFrame:
             TIPO_PREMIUM.BLACK: 0.99,
             TIPO_PREMIUM.CORTESIA: 1.00,
         },
+        cat_to_id=None,
     )
 
     return df
 
 
-def mock_viaje(is_comfort: bool) -> list:
+def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
     """Create information for a mock trip."""
-    geo_locs, distancia_metros = mock_geolocations()
-
-    end_cat, cats_bools, fue_facturado = mock_end()
-
-    return (
-        [
-            geo_locs["origen_lat"],              # origen_lat
-            geo_locs["origen_long"],             # origen_long
-            geo_locs["destino_lat"],             # destino_lat
-            geo_locs["destino_long"],            # destino_long
-            distancia_metros,                    # distancia_metros
-        ]
-        + cats_bools  # end_cerrado, end_cancelado_usuario, end_cancelado_driver, end_cancelado_mentre, end_otros
-        + [fue_facturado]  # fue_facturado
-        + mock_timestamps(end_cat)  # tiempo_inicio, tiempo_fin, duracion_viaje_seg
-        + mock_financial(distancia_metros, is_comfort)  # precio_bruto_usuario, descuento, precio_neto_usuario, comision_driver, margen_mentre
+    n = is_comfort.size
+    df = pd.concat(
+        (
+            mock_geolocations(n),
+            mock_ends(n),
+        ),
+        axis=1,
+        ignore_index=True
     )
+    df = pd.concat(
+        (
+            df,
+            mock_timestamps(df[TRIP_END.CERRADO]),
+            mock_financials(df["distancia_metros"], is_comfort),
+        ),
+        axis=1,
+        ignore_index=True,
+    )
+    return df

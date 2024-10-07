@@ -33,19 +33,6 @@ def mock_drivers() -> str:
         n_min=100,
         n_max=300,
         mock_f=mock_drivers_f,
-        cols=[
-            "id",
-            "nombre",
-            "apellido",
-            "genero",
-            "fecha_registro",
-            "fecha_bloqueo",
-            "direccion_provincia",
-            "direccion_ciudad",
-            "direccion_calle",
-            "direccion_altura",
-            "categoria",
-        ],
     )
 
 
@@ -53,18 +40,9 @@ def mock_usuarios() -> str:
     """Mock users table."""
     return mock_base(
         "usuarios",
-        n_min=50_000,
-        n_max=100_000,
+        n_min=5_000,
+        n_max=10_000,
         mock_f=mock_usuarios_f,
-        cols=[
-            "id",
-            "nombre",
-            "apellido",
-            "genero",
-            "fecha_registro",
-            "fecha_bloqueo",
-            "tipo_premium",
-        ],
     )
 
 
