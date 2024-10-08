@@ -3,6 +3,7 @@
 import logging
 import numpy as np
 import os
+import json
 import pandas as pd
 from random import randint
 from sqlalchemy import create_engine
@@ -19,13 +20,8 @@ logger = logging.getLogger(__name__)
 # * Generic functions
 
 
-def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
-    """Save mock data to local CSV folder and to SQL."""
+def save_to_sql(df: pd.DataFrame, table_name: str, engine) -> None:
     logging.info(f"Loading transformed data in table {table_name}...")
-    path = f"local/mocked_{table_name}.csv"
-
-    df.to_csv(path, index=False)
-
     chunksize = 1_000
     for ix in range(0, df.shape[0], chunksize):
         df.iloc[ix:min(ix + chunksize, df.shape[0])].to_sql(
@@ -38,6 +34,12 @@ def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
         )
     logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
 
+
+def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
+    """Save mock data to local CSV folder and to SQL."""
+    path = f"local/mocked_{table_name}.csv"
+    df.to_csv(path, index=False)
+    save_to_sql(df, table_name, engine)
     return path
 
 
@@ -330,4 +332,89 @@ def get_eventos_end(viajes_cerrado: pd.DataFrame) -> pd.DataFrame:
         axis=1,
     )
     assert df.notnull().all(None)
+    return df
+
+
+# * Clima
+
+
+def parse_accuweather_api_data(data: dict) -> dict:
+    new_data = {
+        "tiempo_round_h": pd.to_datetime(
+            data["LocalObservationDateTime"],
+            utc=True,
+        ).round("60min"),
+        "clima_id":             data["WeatherIcon"],
+        "humedad_relativa_pp":  data["RelativeHumidity"],
+        "indice_uv":            data["UVIndex"],
+        "nubes_pp":             data["CloudCover"],
+        "temperatura_c":        data["Temperature"]["Metric"]["Value"],
+        "sensacion_termica_c":  data["RealFeelTemperature"]["Metric"]["Value"],
+        "velocidad_viento_kmh": data["Wind"]["Speed"]["Metric"]["Value"],
+        "visibilidad_km":       data["Visibility"]["Metric"]["Value"],
+        "presion_mb":           data["Pressure"]["Metric"]["Value"],
+        "precipitacion_mm":     data["Precip1hr"]["Metric"]["Value"],
+    }
+    new_data.update(
+        {
+            "dt_anio": new_data["tiempo_round_h"].year,
+            "dt_mes": new_data["tiempo_round_h"].month,
+            "dt_dia": new_data["tiempo_round_h"].day,
+            "dt_dow": new_data["tiempo_round_h"].dayofweek,
+            "dt_hora": new_data["tiempo_round_h"].hour,
+        }
+    )
+    return new_data
+
+
+# * High level functions
+
+
+def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
+    """High level function for the mocking of viajes."""
+    usuarios = get_usuarios(path_usuarios)
+    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
+    logging.info(f"usuarios: {usuarios.shape[0]}")
+    logging.info(f"n_extra_viajes: {n_extra_viajes}")
+
+    usuarios = preprocess_usuarios(usuarios, n_extra_viajes)
+    drivers = get_preprocess_drivers(path_drivers, usuarios.shape[0])
+
+    viajes = merge_drivers_usuarios(drivers, usuarios)
+    del drivers, usuarios
+
+    return viajes
+
+
+def mock_viajes_eventos_hlf(path_viajes: str) -> pd.DataFrame:
+    """High level function for the mocking of viajes_eventos."""
+    viajes = get_viajes(path_viajes)
+
+    eventos_start = get_eventos_start(viajes)
+    eventos_not_ok_final = get_end_canceled_rides(viajes)
+    viajes_cerrado_corrected, viajes_cerrado = split_viajes_cerrado(viajes)
+
+    eventos_uncorrected = get_eventos_uncorrected(viajes_cerrado_corrected)
+    eventos_corrected = get_eventos_corrected(viajes_cerrado_corrected)
+
+    eventos_end = get_eventos_end(viajes_cerrado)
+
+    eventos = [eventos_start, eventos_not_ok_final, eventos_uncorrected, eventos_corrected, eventos_end]
+    logging.info(f"Event DataFrames shapes: {[df.shape for df in eventos]}")
+    eventos = pd.concat(eventos, axis=0).sort_values("tiempo_evento", ignore_index=True)
+    del eventos_start, eventos_not_ok_final, eventos_uncorrected, eventos_corrected, eventos_end
+
+    logging.info("Events formed and ready to be saved and loaded.")
+    return eventos
+
+
+def mock_clima_hlf(path_clima_id: str) -> pd.DataFrame:
+    path_data = "tables/data/acwt_buenos_aires_1.json"
+    with open(path_data, "r") as f:
+        data = json.load(f)
+    data = data[0]
+
+    parsed_data = parse_accuweather_api_data(data)
+    df = pd.DataFrame({k: 100 * [v] for k, v in parsed_data.items()}).reset_index(drop=False)
+    df = df.rename({"index": "id"}, axis=1)
     return df

@@ -2,25 +2,17 @@
 
 import logging
 import pandas as pd
-from random import randint
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
 from code.database_funcs import check_mock_is_full
 from code.mock_data_redshift import (
-    get_preprocess_drivers,
-    get_end_canceled_rides,
-    get_eventos_corrected,
-    get_eventos_end,
-    get_eventos_start,
-    get_eventos_uncorrected,
-    get_usuarios,
-    get_viajes,
-    merge_drivers_usuarios,
     mock_base,
-    preprocess_usuarios,
+    mock_clima_hlf,
+    mock_viajes_hlf,
+    mock_viajes_eventos_hlf,
     save_mock,
-    split_viajes_cerrado,
+    save_to_sql,
 )
 from code.mock_rows import mock_drivers_f, mock_usuarios_f
 
@@ -59,16 +51,7 @@ def mock_viajes(**kwargs) -> str:
     path_drivers = kwargs["ti"].xcom_pull(task_ids="mock_drivers")
     path_usuarios = kwargs["ti"].xcom_pull(task_ids="mock_usuarios")
 
-    usuarios = get_usuarios(path_usuarios)
-    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
-    logging.info(f"usuarios: {usuarios.shape[0]}")
-    logging.info(f"n_extra_viajes: {n_extra_viajes}")
-
-    usuarios = preprocess_usuarios(usuarios, n_extra_viajes)
-    drivers = get_preprocess_drivers(path_drivers, usuarios.shape[0])
-
-    viajes = merge_drivers_usuarios(drivers, usuarios)
-    del drivers, usuarios
+    viajes = mock_viajes_hlf(path_usuarios, path_drivers)
 
     path = save_mock(viajes, "viajes", engine)
 
@@ -83,26 +66,42 @@ def mock_viajes_eventos(**kwargs) -> None:
     engine = create_engine(REDSHIFT_CONN_STR)
     path = check_mock_is_full(engine, "viajes_eventos")
     if path is not None:
-        return path
+        return
 
     path_viajes = kwargs["ti"].xcom_pull(task_ids="mock_viajes")
-    viajes = get_viajes(path_viajes)
-
-    eventos_start = get_eventos_start(viajes)
-    eventos_not_ok_final = get_end_canceled_rides(viajes)
-    viajes_cerrado_corrected, viajes_cerrado = split_viajes_cerrado(viajes)
-
-    eventos_uncorrected = get_eventos_uncorrected(viajes_cerrado_corrected)
-    eventos_corrected = get_eventos_corrected(viajes_cerrado_corrected)
-
-    eventos_end = get_eventos_end(viajes_cerrado)
-
-    eventos = [eventos_start, eventos_not_ok_final, eventos_uncorrected, eventos_corrected, eventos_end]
-    logging.info(f"Event DataFrames shapes: {[df.shape for df in eventos]}")
-    eventos = pd.concat(eventos, axis=0).sort_values("tiempo_evento", ignore_index=True)
-    del eventos_start, eventos_not_ok_final, eventos_uncorrected, eventos_corrected, eventos_end
-
-    logging.info("Events formed and ready to be saved and loaded.")
+    eventos = mock_viajes_eventos_hlf(path_viajes)
 
     save_mock(eventos, "viajes_eventos", engine)
     logging.info("[END] MOCK VIAJES_EVENTOS")
+
+
+def mock_clima_id() -> str:
+    logging.info("[START] MOCK CLIMA_ID")
+
+    engine = create_engine(REDSHIFT_CONN_STR)
+    path = check_mock_is_full(engine, "clima_id", is_fixed_table=True)
+    if path is not None:
+        return path
+
+    path = "tables/clima_id.csv"
+    df = pd.read_csv(path)
+    save_to_sql(df, "clima_id", engine)
+
+    logging.info("[END] MOCK CLIMA_ID")
+
+    return path
+
+
+def mock_clima(**kwargs):
+    logging.info("[START] MOCK CLIMA")
+
+    engine = create_engine(REDSHIFT_CONN_STR)
+    path = check_mock_is_full(engine, "clima", is_fixed_table=True)
+    if path is not None:
+        return
+
+    path_clima_id = kwargs["ti"].xcom_pull(task_ids="mock_clima_id")
+    clima = mock_clima_hlf(path_clima_id)
+
+    save_mock(clima, "clima", engine)
+    logging.info("[END] MOCK CLIMA")

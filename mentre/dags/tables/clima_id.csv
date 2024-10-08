@@ -1,0 +1,41 @@
+id,dia,noche,texto
+1,true,false,Sunny
+2,true,false,Mostly Sunny
+3,true,false,Partly Sunny
+4,true,false,Intermittent Clouds
+5,true,false,Hazy Sunshine
+6,true,false,Mostly Cloudy
+7,true,true,Cloudy
+8,true,true,Dreary (Overcast)
+11,true,true,Fog
+12,true,true,Showers
+13,true,false,Mostly Cloudy w/ Showers
+14,true,false,Partly Sunny w/ Showers
+15,true,true,T-Storms
+16,true,false,Mostly Cloudy w/ T-Storms
+17,true,false,Partly Sunny w/ T-Storms
+18,true,true,Rain
+19,true,true,Flurries
+20,true,false,Mostly Cloudy w/ Flurries
+21,true,false,Partly Sunny w/ Flurries
+22,true,true,Snow
+23,true,false,Mostly Cloudy w/ Snow
+24,true,true,Ice
+25,true,true,Sleet
+26,true,true,Freezing Rain
+29,true,true,Rain and Snow
+30,true,true,Hot
+31,true,true,Cold
+32,true,true,Windy
+33,false,true,Clear
+34,false,true,Mostly Clear
+35,false,true,Partly Cloudy
+36,false,true,Intermittent Clouds
+37,false,true,Hazy Moonlight
+38,false,true,Mostly Cloudy
+39,false,true,Partly Cloudy w/ Showers
+40,false,true,Mostly Cloudy w/ Showers
+41,false,true,Partly Cloudy w/ T-Storms
+42,false,true,Mostly Cloudy w/ T-Storms
+43,false,true,Mostly Cloudy w/ Flurries
+44,false,true,Mostly Cloudy w/ Snow 

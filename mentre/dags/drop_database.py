@@ -22,6 +22,11 @@ with DAG(
         task_id="drop_clima",
         python_callable=ddl_query("drop", "clima.sql"),
     )
+    drop_clima_id_task = PythonOperator(
+        task_id="drop_clima_id",
+        python_callable=ddl_query("drop", "clima_id.sql"),
+    )
+
     drop_viajes_eventos_task = PythonOperator(
         task_id="drop_viajes_eventos",
         python_callable=ddl_query("drop", "viajes_eventos.sql"),
@@ -39,6 +44,6 @@ with DAG(
         python_callable=ddl_query("drop", "drivers.sql"),
     )
 
-    try_redshift_connection_task >> drop_clima_task
+    try_redshift_connection_task >> drop_clima_task >> drop_clima_id_task
     try_redshift_connection_task >> drop_viajes_eventos_task >> drop_viajes_task
     drop_viajes_task >> [drop_drivers_task, drop_usuarios_task]

@@ -31,11 +31,16 @@ with DAG(
         task_id="create_viajes_eventos",
         python_callable=ddl_query("create", "viajes_eventos.sql"),
     )
+
+    create_clima_id_task = PythonOperator(
+        task_id="create_clima_id",
+        python_callable=ddl_query("create", "clima_id.sql"),
+    )
     create_clima_task = PythonOperator(
         task_id="create_clima",
         python_callable=ddl_query("create", "clima.sql"),
     )
 
-    try_redshift_connection_task >> create_clima_task
+    try_redshift_connection_task >> create_clima_id_task >> create_clima_task
     try_redshift_connection_task >> [create_drivers_task, create_usuarios_task] >> create_viajes_task
     create_viajes_task >> create_viajes_eventos_task
