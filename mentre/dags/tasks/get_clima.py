@@ -1,15 +1,20 @@
 """ETL Airflow functions."""
 
 import datetime as dt
+import json
 import logging
 import os
 import pandas as pd
 import requests
 from sqlalchemy import create_engine
 
+from code.clima import parse_accuweather_api_data
 from code.database import REDSHIFT_CONN_STR
+from code.database_funcs import get_max_id
 
 logger = logging.getLogger(__name__)
+
+BUENOS_AIRES_ID = 7894
 
 
 def extract_data(**kwargs) -> str:
@@ -20,18 +25,28 @@ def extract_data(**kwargs) -> str:
     assert os.path.isdir(extracted_fd_path), f"Path not found: {extracted_fd_path}"
     path = os.path.join(
         extracted_fd_path,
-        f"extracted_data_{dt.date.today()}.pq",
+        f"extracted_data_{dt.date.today()}.json",
     )
 
     logging.info("Getting data...")
-    resp = requests.get("https://dummy-json.mock.beeceptor.com/posts")
+    resp = requests.get(
+        f"{os.environ['ACWT_URL']}/currentconditions/v1/{BUENOS_AIRES_ID}",
+        params={
+            "apikey": os.environ["ACWT_API_KEY"],
+            "language": "en-us",
+            "details": True,
+        }
+    )
+    if resp.status_code != 200:
+        logging.error(resp.text)
+        logging.error(resp.reason)
+        raise AssertionError(f"Status code: {resp.status_code}")
+
     data = resp.json()
     logging.info("Getting data OK")
 
-    df = pd.DataFrame(data)
-
-    df.to_parquet(path, index=False)
-    df.to_csv(path[:-3] + ".csv", index=False)
+    with open(path, "w") as f:
+        json.dump(data, f)
     logging.info(f"Extracted data saved to {path}")
 
     logging.info("[END] EXTRACT DATA")
@@ -42,12 +57,14 @@ def transform_data(**kwargs) -> str:
     """Transform the data and save it as parquet file."""
     logging.info("[START] TRANSFORM DATA")
 
-    path_df = (
+    path_extr = (
         kwargs["extracted_path"]
         if "extracted_path" in kwargs
         else kwargs["ti"].xcom_pull(task_ids="extract_data")
     )
-    df = pd.read_parquet(path_df)
+    with open(path_extr, "r") as f:
+        data = json.load(f)
+    data = data[0]  # Get first and only item
 
     transformed_fd_path = kwargs["transformed_fd_path"]
     assert os.path.isdir(transformed_fd_path), f"Path not found: {transformed_fd_path}"
@@ -56,9 +73,14 @@ def transform_data(**kwargs) -> str:
         f"transformed_data_{dt.date.today()}.pq",
     )
 
-    # TODO: Example transformation
     logging.info("Transforming data...")
-    df = df[df["comment_count"] > 10]
+
+    parsed_data = parse_accuweather_api_data(data)
+    engine = create_engine(REDSHIFT_CONN_STR)
+    parsed_data["id"] = get_max_id(engine, table_name="clima") + 1
+    df = pd.DataFrame([parsed_data])
+    assert df.shape[0] == 1
+
     logging.info("Transforming data OK")
 
     df.to_parquet(transformed_path, index=False)
@@ -81,20 +103,12 @@ def load_to_redshift(**kwargs) -> None:
     df = pd.read_parquet(path_df)
     redshift_table = kwargs["redshift_table"]
 
-    with open("queries/tables.sql") as f:
-        tables_query = f.read()
-    tables_query = tables_query.format(DB_SCHEMA=os.environ["DB_SCHEMA"])
-
     engine = create_engine(REDSHIFT_CONN_STR)
-
-    tables = [t[0] for t in engine.execute(tables_query).fetchall()]
-    logging.info("Tables in schema:", tables)
-
     df.to_sql(
         schema=os.environ["DB_SCHEMA"],
         name=redshift_table,
         con=engine,
-        if_exists="replace",
+        if_exists="append",
         index=False,
         method="multi",
     )

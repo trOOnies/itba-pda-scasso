@@ -1,6 +1,6 @@
 import os
 
-from tasks.etl import extract_data, load_to_redshift, transform_data
+from tasks.get_clima import extract_data, load_to_redshift, transform_data
 
 
 def main():

@@ -97,7 +97,9 @@ def check_mock_is_full(engine, table_name: str, is_fixed_table: bool = False) ->
     )
     is_full = result.first()[0]
     if is_full:
-        logging.info(f"The table '{table_name}' exists and it's already full. Skipping data creation.")
+        logging.info(
+            f"The table '{table_name}' exists and it's already full. Skipping data creation."
+        )
 
         path = (
             f"tables/{table_name}.csv"
@@ -108,3 +110,14 @@ def check_mock_is_full(engine, table_name: str, is_fixed_table: bool = False) ->
         assert os.path.exists(path), f"Table '{table_name}' is full but local CSV doesn't exist."
         return path
     return None
+
+
+def get_max_id(engine, table_name: str) -> int:
+    assert all(ch not in table_name for ch in [".", "/", "\\"])
+    result = execute_query(
+        engine,
+        "select",
+        "get_max_id.sql",
+        prev_kwargs={"DB_TABLE": table_name},
+    )
+    return result.first()[0]

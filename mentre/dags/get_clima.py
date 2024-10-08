@@ -4,7 +4,12 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import os
 
-from tasks.etl import extract_data, transform_data, load_to_redshift
+from code.database_funcs import select_query
+from tasks.get_clima import (
+    extract_data,
+    load_to_redshift,
+    transform_data,
+)
 
 DIR_PATH = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -14,8 +19,8 @@ REDSHIFT_TABLE = "clima"
 
 
 with DAG(
-    "etl_redshift",
-    description="ETL pipeline for Mentre data in Redshift",
+    "get_clima",
+    description="ETL pipeline for climate data",
     # default_args={
     #     "retries": 1,
     # },
@@ -23,6 +28,11 @@ with DAG(
     # start_date=datetime(2024, 1, 1),
     # catchup=False,
 ) as dag:
+    try_redshift_connection_task = PythonOperator(
+        task_id="try_redshift_connection_task",
+        python_callable=select_query("tables.sql"),
+    )
+
     extract_task = PythonOperator(
         task_id="extract_data",
         python_callable=extract_data,
@@ -41,4 +51,7 @@ with DAG(
         op_kwargs={"redshift_table": REDSHIFT_TABLE},
     )
 
+    # We first try the Redshift connection,
+    # to avoid wasting calls to the AccuWeather API
+    try_redshift_connection_task >> extract_task
     extract_task >> transform_task >> load_to_redshift_task
