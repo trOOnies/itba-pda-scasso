@@ -8,9 +8,9 @@ import pandas as pd
 import requests
 from sqlalchemy import create_engine
 
-from code.mock_clima import parse_accuweather_api_data
 from code.database import REDSHIFT_CONN_STR
-from code.database_funcs import get_max_id
+from code.database_funcs import append_df_to_redshift
+from code.mock_clima import transform_function
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +70,8 @@ def transform_data(**kwargs) -> str:
     )
 
     logging.info("Transforming data...")
-
-    parsed_data = parse_accuweather_api_data(data)
     engine = create_engine(REDSHIFT_CONN_STR)
-    parsed_data["id"] = get_max_id(engine, table_name="clima") + 1
-    df = pd.DataFrame([parsed_data])
-    assert df.shape[0] == 1
-
+    df = transform_function(data, engine)
     logging.info("Transforming data OK")
 
     df.to_parquet(transformed_path, index=False)
@@ -96,14 +91,7 @@ def load_to_redshift(**kwargs) -> None:
     redshift_table = kwargs["redshift_table"]
 
     engine = create_engine(REDSHIFT_CONN_STR)
-    df.to_sql(
-        schema=os.environ["DB_SCHEMA"],
-        name=redshift_table,
-        con=engine,
-        if_exists="append",
-        index=False,
-        method="multi",
-    )
+    append_df_to_redshift(df, redshift_table, engine)
     logging.info(f"Transformed data loaded into Redshift in table '{redshift_table}'")
 
     logging.info("[END] LOAD TO REDSHIFT")
