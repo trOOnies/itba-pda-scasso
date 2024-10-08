@@ -1,62 +1,11 @@
 import datetime as dt
+import logging
 import numpy as np
+from random import randint
 import pandas as pd
 
 from code.utils import random_categories_array
-from options import TIPO_CATEGORIA, TIPO_PREMIUM, TRIP_END
-
-
-def get_random_names(ref: str, n: int) -> pd.Series:
-    assert ref in {"apellidos", "hombres", "mujeres"}
-    df = pd.read_csv(f"mock/{ref}.csv")
-    col = "apellido" if ref == "apellidos" else "nombre"
-    return df[col].sample(n, replace=True)
-
-
-def get_random_provs(n: int) -> pd.DataFrame:
-    df = pd.read_csv("tables/provincias.csv")
-    return df["nombre"].sample(n, replace=True)
-
-
-def mock_persons(n: int, m_thresh: float, f_thresh: float) -> pd.DataFrame:
-    """Create information for n mock persons.
-    M = Male (man), F = Female (woman), X = Non-binary.
-    """
-    assert 0.00 < m_thresh
-    assert m_thresh < f_thresh
-    assert f_thresh < 1.00
-
-    df = pd.DataFrame(
-        random_categories_array(n, {"M": m_thresh, "F": f_thresh, "X": 1.00}, cat_to_id=None),
-        columns=["genero"],
-    )
-    non_binary_w_men_name = np.random.random(n)
-
-    mixed_names = np.vstack(
-        (
-            get_random_names("mujeres", n).values,
-            get_random_names("hombres", n).values,
-        )
-    )
-    assert mixed_names.shape == (2, n), f"Invalid shape: {mixed_names.shape} (exp={(2, n)})"
-    mask_man = np.logical_or(
-        (df["genero"] == "M").values,
-        non_binary_w_men_name,
-    ).astype(int)
-
-    nombre = mixed_names[mask_man, np.arange(n)]
-    assert nombre.shape == (n,), f"Invalid shape: {nombre.shape} (exp={(n,)})"
-    df["nombre"] = nombre
-
-    df["apellido"] = get_random_names("apellidos", n).values
-
-    df.loc[:, "fecha_registro"] = "2024-01-01"
-
-    df.loc[:, "fecha_bloqueo"] = None
-    mask_blocked = (np.random.random(n)) < 0.15
-    df.loc[mask_blocked, "fecha_bloqueo"] = "2024-01-03"
-
-    return df
+from options import TIPO_CATEGORIA, TRIP_END
 
 
 def mock_geolocations(n: int) -> pd.DataFrame:
@@ -167,57 +116,70 @@ def mock_financials(distance_m: pd.Series, is_comfort: pd.Series) -> pd.DataFram
     return df
 
 
-# * Item mock functions
+# * Middle level functions
 
 
-def mock_drivers_f(n: int) -> pd.DataFrame:
-    """Create information for a mock driver."""
-    df = mock_persons(n, m_thresh=0.80, f_thresh=0.99)
+def get_usuarios(path: str) -> pd.DataFrame:
+    """Get users for mock_viajes task.
 
-    df["id"] = np.random.randint(0, 100_000_000, size=n)
-    df["direccion_altura"] = np.random.randint(1, 10_000, size=n)
-    df.loc[:, "direccion_ciudad"] = "CIUDAD"
-    df.loc[:, "direccion_calle"] = "CALLE"
-    df["categoria"] = random_categories_array(
-        n,
-        {TIPO_CATEGORIA.STANDARD: 0.9, TIPO_CATEGORIA.COMFORT: 1.0},
-        cat_to_id=None,
-    )
-    df["direccion_provincia"] = get_random_provs(n).values
-
-    return df
+    Base hyphotesis: 75% of users rode at least once with Mentre.
+    """
+    usuarios = pd.read_csv(path, usecols=["id"])
+    assert not usuarios.empty
+    usuarios = usuarios.sample(frac=0.75, replace=False)
+    return usuarios
 
 
-def mock_usuarios_f(n: int) -> pd.DataFrame:
-    """Create information for a mock user."""
-    df = mock_persons(n, m_thresh=0.65, f_thresh=0.99)
+def preprocess_usuarios(usuarios: pd.DataFrame, n_extra_viajes: int) -> pd.DataFrame:
+    """Preprocess users for mock_viajes task.
 
-    df["id"] = np.random.randint(0, 100_000_000, size=n)
-    df["tipo_premium"] = random_categories_array(
-        n,
-        {
-            TIPO_PREMIUM.STANDARD: 0.80,
-            TIPO_PREMIUM.GOLD: 0.90,
-            TIPO_PREMIUM.BLACK: 0.99,
-            TIPO_PREMIUM.CORTESIA: 1.00,
-        },
-        cat_to_id=None,
-    )
+    Base hyphotesis: some users account for more than 1 trip.
+    """
+    usuarios = pd.concat(
+        (
+            usuarios[["id"]],
+            usuarios[["id"]].sample(n=n_extra_viajes, replace=True),
+        ),
+        ignore_index=True,
+        axis=0,
+    ).sample(frac=1, replace=False)
+    usuarios = usuarios.rename({"id": "usuario_id"}, axis=1)
+    return usuarios
 
-    return df
+
+def get_preprocess_drivers(path: str, total_viajes: int) -> pd.DataFrame:
+    """Get and preprocess drivers for mock_viajes task.
+
+    Base hyphotesis: almost every driver drove at least once with Mentre.
+    Take into account that we compensate n_zero rows because we need (n + n_extra_viajes) rows.
+    """
+    drivers = pd.read_csv(path, usecols=["id", "categoria"])
+    assert not drivers.empty
+
+    drivers["is_comfort"] = drivers["categoria"] == TIPO_CATEGORIA.COMFORT
+    drivers = drivers.drop("categoria", axis=1)
+
+    n_with_trips = int(0.95 * drivers.shape[0])
+    drivers = drivers.sample(n=n_with_trips, replace=False)
+
+    drivers = pd.concat(
+        (
+            drivers,
+            drivers.sample(n=(total_viajes - n_with_trips), replace=True),
+        ),
+        ignore_index=True,
+        axis=0,
+    ).sample(frac=1, replace=False)
+    drivers = drivers.rename({"id": "driver_id"}, axis=1)
+
+    return drivers
 
 
 def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
     """Create information for a mock trip."""
     n = is_comfort.size
 
-    df = pd.concat(
-        (
-            mock_geolocations(n),
-            mock_ends(n),
-        ),
-        axis=1,
-    )
+    df = pd.concat((mock_geolocations(n), mock_ends(n)), axis=1)
     assert df.shape[0] == n
 
     df = pd.concat(
@@ -231,3 +193,40 @@ def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
     assert df.shape[0] == n
 
     return df
+
+
+def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.DataFrame:
+    """Merge drivers and users for the mock_viajes task."""
+    assert drivers.shape[0] == usuarios.shape[0], (
+        f"The rows don't match: {drivers.shape[0]} in drivers vs. {usuarios.shape[0]} in usuarios"
+    )
+    viajes = pd.concat((drivers, usuarios), axis=1)
+    viajes = pd.concat(
+        (
+            viajes[["driver_id", "usuario_id"]],
+            mock_viajes_f(viajes["is_comfort"]),
+        ),
+        axis=1,
+    )
+    viajes = viajes.sort_values("tiempo_inicio", ignore_index=True)
+    viajes["id"] = range(viajes.shape[0])
+    return viajes
+
+
+# * High level function
+
+
+def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
+    """High level function for the mocking of viajes."""
+    usuarios = get_usuarios(path_usuarios)
+    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
+    logging.info(f"usuarios: {usuarios.shape[0]}")
+    logging.info(f"n_extra_viajes: {n_extra_viajes}")
+
+    usuarios = preprocess_usuarios(usuarios, n_extra_viajes)
+    drivers = get_preprocess_drivers(path_drivers, usuarios.shape[0])
+
+    viajes = merge_drivers_usuarios(drivers, usuarios)
+    del drivers, usuarios
+
+    return viajes

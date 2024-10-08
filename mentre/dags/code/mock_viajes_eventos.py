@@ -1,152 +1,12 @@
-"""Functions for creating mock data in Redshift."""
-
 import logging
 import numpy as np
-import os
-import json
 import pandas as pd
-from random import randint
-from sqlalchemy import create_engine
 
-from code.clima import parse_accuweather_api_data
-from code.database import REDSHIFT_CONN_STR
-from code.database_funcs import check_mock_is_full
-from code.mock_rows import mock_viajes_f
 from code.utils import random_categories_array
-from options import TIPO_CATEGORIA, TRIP_END
-
-logger = logging.getLogger(__name__)
+from options import TRIP_END
 
 
-# * Generic functions
-
-
-def save_to_sql(df: pd.DataFrame, table_name: str, engine) -> None:
-    logging.info(f"Loading transformed data in table {table_name}...")
-    chunksize = 1_000
-    for ix in range(0, df.shape[0], chunksize):
-        df.iloc[ix:min(ix + chunksize, df.shape[0])].to_sql(
-            schema=os.environ["DB_SCHEMA"],
-            name=table_name,
-            con=engine,
-            if_exists="append",
-            index=False,
-            method="multi",
-        )
-    logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
-
-
-def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
-    """Save mock data to local CSV folder and to SQL."""
-    path = f"local/mocked_{table_name}.csv"
-    df.to_csv(path, index=False)
-    save_to_sql(df, table_name, engine)
-    return path
-
-
-def mock_base(
-    table_name: str,
-    n_min: int,
-    n_max: int,
-    mock_f,
-) -> str:
-    """Base function for the mocking of a table."""
-    logging.info(f"[START] MOCK {table_name.upper()}")
-
-    engine = create_engine(REDSHIFT_CONN_STR)
-    path = check_mock_is_full(engine, table_name)
-    if path is not None:
-        return path
-
-    logging.info(f"Creando items para {table_name}...")
-    n_items = randint(n_min, n_max)
-    df = mock_f(n_items)
-    logging.info(f"Items para {table_name} creados.")
-
-    path = save_mock(df, table_name, engine)
-
-    logging.info(f"[END] MOCK {table_name.upper()}")
-    return path
-
-
-# * Trips
-
-
-def get_usuarios(path: str) -> pd.DataFrame:
-    """Get users for mock_viajes task.
-
-    Base hyphotesis: 75% of users rode at least once with Mentre.
-    """
-    usuarios = pd.read_csv(path, usecols=["id"])
-    assert not usuarios.empty
-    usuarios = usuarios.sample(frac=0.75, replace=False)
-    return usuarios
-
-
-def preprocess_usuarios(usuarios: pd.DataFrame, n_extra_viajes: int) -> pd.DataFrame:
-    """Preprocess users for mock_viajes task.
-
-    Base hyphotesis: some users account for more than 1 trip.
-    """
-    usuarios = pd.concat(
-        (
-            usuarios[["id"]],
-            usuarios[["id"]].sample(n=n_extra_viajes, replace=True),
-        ),
-        ignore_index=True,
-        axis=0,
-    ).sample(frac=1, replace=False)
-    usuarios = usuarios.rename({"id": "usuario_id"}, axis=1)
-    return usuarios
-
-
-def get_preprocess_drivers(path: str, total_viajes: int) -> pd.DataFrame:
-    """Get and preprocess drivers for mock_viajes task.
-
-    Base hyphotesis: almost every driver drove at least once with Mentre.
-    Take into account that we compensate n_zero rows because we need (n + n_extra_viajes) rows.
-    """
-    drivers = pd.read_csv(path, usecols=["id", "categoria"])
-    assert not drivers.empty
-
-    drivers["is_comfort"] = drivers["categoria"] == TIPO_CATEGORIA.COMFORT
-    drivers = drivers.drop("categoria", axis=1)
-
-    n_with_trips = int(0.95 * drivers.shape[0])
-    drivers = drivers.sample(n=n_with_trips, replace=False)
-
-    drivers = pd.concat(
-        (
-            drivers,
-            drivers.sample(n=(total_viajes - n_with_trips), replace=True),
-        ),
-        ignore_index=True,
-        axis=0,
-    ).sample(frac=1, replace=False)
-    drivers = drivers.rename({"id": "driver_id"}, axis=1)
-
-    return drivers
-
-
-def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.DataFrame:
-    """Merge drivers and users for the mock_viajes task."""
-    assert drivers.shape[0] == usuarios.shape[0], (
-        f"The rows don't match: {drivers.shape[0]} in drivers vs. {usuarios.shape[0]} in usuarios"
-    )
-    viajes = pd.concat((drivers, usuarios), axis=1)
-    viajes = pd.concat(
-        (
-            viajes[["driver_id", "usuario_id"]],
-            mock_viajes_f(viajes["is_comfort"]),
-        ),
-        axis=1,
-    )
-    viajes = viajes.sort_values("tiempo_inicio", ignore_index=True)
-    viajes["id"] = range(viajes.shape[0])
-    return viajes
-
-
-# * Trip events
+# * Middle level functions
 
 
 def get_viajes(path: str) -> pd.DataFrame:
@@ -336,23 +196,7 @@ def get_eventos_end(viajes_cerrado: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# * High level functions
-
-
-def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
-    """High level function for the mocking of viajes."""
-    usuarios = get_usuarios(path_usuarios)
-    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
-    logging.info(f"usuarios: {usuarios.shape[0]}")
-    logging.info(f"n_extra_viajes: {n_extra_viajes}")
-
-    usuarios = preprocess_usuarios(usuarios, n_extra_viajes)
-    drivers = get_preprocess_drivers(path_drivers, usuarios.shape[0])
-
-    viajes = merge_drivers_usuarios(drivers, usuarios)
-    del drivers, usuarios
-
-    return viajes
+# * High level function
 
 
 def mock_viajes_eventos_hlf(path_viajes: str) -> pd.DataFrame:
@@ -375,15 +219,3 @@ def mock_viajes_eventos_hlf(path_viajes: str) -> pd.DataFrame:
 
     logging.info("Events formed and ready to be saved and loaded.")
     return eventos
-
-
-def mock_clima_hlf(path_clima_id: str) -> pd.DataFrame:
-    path_data = "tables/data/acwt_buenos_aires_1.json"
-    with open(path_data, "r") as f:
-        data = json.load(f)
-    data = data[0]
-
-    parsed_data = parse_accuweather_api_data(data)
-    df = pd.DataFrame({k: 100 * [v] for k, v in parsed_data.items()}).reset_index(drop=False)
-    df = df.rename({"index": "id"}, axis=1)
-    return df

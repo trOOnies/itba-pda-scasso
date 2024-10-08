@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 
 
@@ -28,3 +29,15 @@ def parse_accuweather_api_data(data: dict) -> dict:
         }
     )
     return new_data
+
+
+def mock_clima_hlf(path_clima_id: str) -> pd.DataFrame:
+    path_data = "tables/data/acwt_buenos_aires_1.json"
+    with open(path_data, "r") as f:
+        data = json.load(f)
+    data = data[0]
+
+    parsed_data = parse_accuweather_api_data(data)
+    df = pd.DataFrame({k: 100 * [v] for k, v in parsed_data.items()}).reset_index(drop=False)
+    df = df.rename({"index": "id"}, axis=1)
+    return df

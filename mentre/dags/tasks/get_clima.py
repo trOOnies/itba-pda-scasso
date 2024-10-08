@@ -1,4 +1,4 @@
-"""ETL Airflow functions."""
+"""Weather related Airflow tasks functions."""
 
 import datetime as dt
 import json
@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 from sqlalchemy import create_engine
 
-from code.clima import parse_accuweather_api_data
+from code.mock_clima import parse_accuweather_api_data
 from code.database import REDSHIFT_CONN_STR
 from code.database_funcs import get_max_id
 
@@ -57,11 +57,7 @@ def transform_data(**kwargs) -> str:
     """Transform the data and save it as parquet file."""
     logging.info("[START] TRANSFORM DATA")
 
-    path_extr = (
-        kwargs["extracted_path"]
-        if "extracted_path" in kwargs
-        else kwargs["ti"].xcom_pull(task_ids="extract_data")
-    )
+    path_extr = kwargs["ti"].xcom_pull(task_ids="extract_data")
     with open(path_extr, "r") as f:
         data = json.load(f)
     data = data[0]  # Get first and only item
@@ -95,11 +91,7 @@ def load_to_redshift(**kwargs) -> None:
     """Load transformed data to Amazon Redshift."""
     logging.info("[START] LOAD TO REDSHIFT")
 
-    path_df = (
-        kwargs["transformed_path"]
-        if "transformed_path" in kwargs
-        else kwargs["ti"].xcom_pull(task_ids="transform_data")
-    )
+    path_df = kwargs["ti"].xcom_pull(task_ids="transform_data")
     df = pd.read_parquet(path_df)
     redshift_table = kwargs["redshift_table"]
 

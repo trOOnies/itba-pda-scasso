@@ -6,15 +6,11 @@ from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
 from code.database_funcs import check_mock_is_full
-from code.mock_data_redshift import (
-    mock_base,
-    mock_clima_hlf,
-    mock_viajes_hlf,
-    mock_viajes_eventos_hlf,
-    save_mock,
-    save_to_sql,
-)
-from code.mock_rows import mock_drivers_f, mock_usuarios_f
+from code.mock import mock_base, save_mock, save_to_sql
+from code.mock_clima import mock_clima_hlf
+from code.mock_people import mock_drivers_f, mock_usuarios_f
+from code.mock_viajes import mock_viajes_hlf
+from code.mock_viajes_eventos import mock_viajes_eventos_hlf
 
 logger = logging.getLogger(__name__)
 

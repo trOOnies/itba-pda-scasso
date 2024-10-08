@@ -20,7 +20,7 @@ https://developer.accuweather.com/accuweather_custom/package/purchase/free/free
 - Verificar la casilla de correo haciendo click en el link que llega por email.
 - Hacer login inmediatamente y configurar una contraseña personal para AccuWeather.
 - Crear una app en la sección MY APPS.
-- Una vez creada la app, copiar su API key. AccuWeather permite hasta 50 llamadas diarias con el plan gratuito.
+- Una vez creada la app, copiar su API key. AccuWeather permite hasta _50 llamadas diarias_ con el plan gratuito.
 - Poner esta API key en el archivo `.env` como una variable de entorno de nombre **ACWT_API_KEY**.
 
 ### Levantar Airflow
@@ -38,10 +38,12 @@ docker compose up
 
 Para acceder a Airflow, utilizar el usuario y contraseña provisto al profesor.
 
+Se encontrarán con los siguientes DAGs:
 - `create_database`: Crea las tablas del proyecto con sus correspondientes esquemas de tipo de datos en el schema `DB_SCHEMA` del archivo `.env`.
+- `drop_database`: Elimina completamente las tablas del proyecto.
 - `mock_data_redshift`: Crea de forma aleatoria la información falsa _(mock)_ del proyecto, tomando hipótesis varias para dicha creación, de tal forma que haya correspondencia y cierta correlación entre las variables de las tablas.
     - Este DAG está preparado para detectar si ya existe una tabla (else error) y si está vacía (else saltea todos los cálculos del task correspondiente).
-- `drop_database`: Elimina completamente las tablas del proyecto.
+- `get_clima` (c/hora): Llama a la API de AccuWeather para pedir el detalle meteorológico actual de la Ciudad Autónoma de Buenos Aires (Argentina), lo transforma a tabla, filtra las columnas necesarias y lo sube a Redshift.
 
 El camino usual es:
 1. `create_database`
