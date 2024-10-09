@@ -1,13 +1,12 @@
 """Generic functions for creating mock data in Redshift."""
 
 import logging
-import os
 import pandas as pd
 from random import randint
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
-from code.database_funcs import check_mock_is_full
+from code.database_funcs import append_df_to_redshift, check_mock_is_full
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +15,11 @@ def save_to_sql(df: pd.DataFrame, table_name: str, engine) -> None:
     logging.info(f"Loading transformed data in table {table_name}...")
     chunksize = 1_000
     for ix in range(0, df.shape[0], chunksize):
-        df.iloc[ix:min(ix + chunksize, df.shape[0])].to_sql(
-            schema=os.environ["DB_SCHEMA"],
-            name=table_name,
-            con=engine,
-            if_exists="append",
-            index=False,
-            method="multi",
+        next_ix = min(ix + chunksize, df.shape[0])
+        append_df_to_redshift(
+            df.iloc[ix:next_ix],
+            table_name=table_name,
+            engine=engine,
         )
     logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
 
