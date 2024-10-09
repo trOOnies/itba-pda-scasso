@@ -45,7 +45,7 @@ clean-lint: ## [ruff] Remove cache
 	rm -rf .ruff_cache
 
 test: ## [pytest] Test the code and coverage
-	python3 -m pytest --cov=xxx
+	python3 -m pytest
 
 clean-test: ## [pytest] Remove test and coverage artifacts
 	rm -rf .pytest_cache
