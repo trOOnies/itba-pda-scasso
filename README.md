@@ -65,7 +65,22 @@ Para el desarrollador, ante cualquier inconveniente que no pueda ser resuelto po
 
 ### Airflow
 
-...
+Nuestra implementación de Airflow es mediante Docker Compose, habiendo partido del [archivo oficial](https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html) que provee Airflow.
+
+La carpeta principal `mentre/` contiene todos los archivos relevantes a Airflow, véase:
+- Las carpetas `config`, `dags`, `logs` y `plugins`
+- El archivo `docker-compose.yaml`
+- El archivo `Dockerfile` (que es tomado por Docker Compose para levantar la imagen de Mentre)
+- Los archivos de requerimientos para Python `requirements_test.txt` y `requirements.txt`
+
+La totalidad del código de Airflow se encuentra en la carpeta `dags`. Los DAGs están sueltos en dicha carpeta, y contamos con varias carpetas más:
+- `tasks`: Contiene algunas de las funciones utilizadas en los tasks para los DAGs.
+- `code`: El resto de código Python, separado por competencias.
+- `options`: Archivos útiles para el correcto uso de valores del proyecto, por ejemplo, strings conocidos. Reduce typos al escribir y referenciar código.
+- `tables`: Información estática del proyecto, donde residen las tablas que no dependen de la aleatoriedad.
+- `mock`: Archivos útiles para la creación aleatoria de datos falsos _(mock)_.
+- `queries`: Queries para su utilización en el código mediante sqlalchemy. Se fuerza su utilización mediante funciones centralizadas, con el objetivo de estandarizar las llamadas a la base de datos. Caso contrario, podrían generarse errores que afectarían la base de forma permanente, o incluso abrir la puerta a casos maliciosos como lo puede ser la inyección de código SQL.
+- `local`: Donde residen los archivos de forma local que generan las tasks de nuestros DAGs de Airflow. Se utiliza para levantar resultados intermedios en tasks posteriores, pasando únicamente los caminos _(paths)_ de los archivos y no el objeto en sí.
 
 ### Tests
 
@@ -80,8 +95,12 @@ No obstante, en el siguiente ítem veremos su utilización automática, sin nece
 
 ### GitHub Actions
 
-...
+El proyecto cuenta con 2 workflows para GitHub Actions, localizados en la carpeta `.github/workflows/`:
+- `test.yaml`: Setea todo lo necesario en un Ubuntu con Python 3.10, y prueba correr tanto ruff (linting) como pytest (testing). El build en sí y estos 2 checks deben correrse exitosamente para considerar la corrida del workflow como exitosa. Este check se hace tanto en PR a develop y main, como cuando ya está hecho el merge (que cuenta como un push). Esto representa un flujo normal en el ámbito laboral, ya que se suele "duplicar" este check antes y después de mergear para minimizar la cantidad de errores y estar seguros de que el código que llega a develop y a main cumple nuestros estándares de calidad.
+- `enforcer.yaml`: Este workflow adicional sólo corre cuando se hace un PR a main. Genera un status check que falla si se intenta hacer un PR desde una branch que no sea develop.
 
 ## Recursos utilizados
 
+- [Running Airflow in Docker](https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html)
+- [Starter Workflows](https://github.com/actions/starter-workflows)
 - [Spanish Names](https://github.com/marcboquet/spanish-names)
