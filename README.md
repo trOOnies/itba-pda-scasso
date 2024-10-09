@@ -69,9 +69,16 @@ Para el desarrollador, ante cualquier inconveniente que no pueda ser resuelto po
 
 ### Tests
 
-...
+La carpeta `tests` contiene los tests del proyecto. Adicionalmente, tiene un archivo especial llamado `conftest.py` que lo utilizamos para que los imports relativos del proyecto se comporten de manera equivalente a como lo hacen en Airflow, para que no se genere un error al correr los tests.
 
-# GitHub Actions
+Para correr los tests puede utilizarse el siguiente comando:
+```bash
+make test
+```
+
+No obstante, en el siguiente ítem veremos su utilización automática, sin necesidad de correr el comando de forma manual.
+
+### GitHub Actions
 
 ...
 
