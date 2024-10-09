@@ -1,7 +1,6 @@
 """Generic functions for creating mock data in Redshift."""
 
 import logging
-import os
 import pandas as pd
 from random import randint
 from sqlalchemy import create_engine
