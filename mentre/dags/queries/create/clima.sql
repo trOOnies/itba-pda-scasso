@@ -4,9 +4,9 @@ CREATE TABLE IF NOT EXISTS "{DB_SCHEMA}".clima (
     dt_anio              SMALLINT,
     dt_mes               SMALLINT,
     dt_dia               SMALLINT,
-    dt_dow               SMALLINT,  -- Day of the week from Monday=0 to Sunday=6
+    dt_dow               SMALLINT,
     dt_hora              SMALLINT,
-    clima_id             SMALLINT,  -- see clima_id table
+    clima_id             SMALLINT,  -- 4: Intermittent Clouds
     humedad_relativa_pp  SMALLINT,
     indice_uv            SMALLINT,
     nubes_pp             SMALLINT,

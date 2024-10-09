@@ -1,8 +1,6 @@
 import json
 import pandas as pd
 
-from code.database_funcs import get_max_id
-
 
 def parse_accuweather_api_data(data: dict) -> dict:
     new_data = {
@@ -42,13 +40,4 @@ def mock_clima_hlf(path_clima_id: str) -> pd.DataFrame:
     parsed_data = parse_accuweather_api_data(data)
     df = pd.DataFrame({k: 100 * [v] for k, v in parsed_data.items()}).reset_index(drop=False)
     df = df.rename({"index": "id"}, axis=1)
-    return df
-
-
-def transform_function(data: dict, engine) -> pd.DataFrame:
-    """Transform function for the clima hourly ETL."""
-    parsed_data = parse_accuweather_api_data(data)
-    parsed_data["id"] = get_max_id(engine, table_name="clima") + 1
-    df = pd.DataFrame([parsed_data])
-    assert df.shape[0] == 1
     return df
