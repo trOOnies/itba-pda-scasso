@@ -3,13 +3,9 @@
 import logging
 import os
 import re
-from typing import TYPE_CHECKING
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
-
-if TYPE_CHECKING:
-    from pandas import DataFrame
 
 KEYWORDS_PATT = re.compile(r"\{[A-Z\_]+\}")
 
@@ -125,15 +121,3 @@ def get_max_id(engine, table_name: str) -> int:
         prev_kwargs={"DB_TABLE": table_name},
     )
     return result.first()[0]
-
-
-def append_df_to_redshift(df: "DataFrame", table_name: str, engine) -> None:
-    """Append DataFrame to Redshift table."""
-    df.to_sql(
-        schema=os.environ["DB_SCHEMA"],
-        name=table_name,
-        con=engine,
-        if_exists="append",
-        index=False,
-        method="multi",
-    )
