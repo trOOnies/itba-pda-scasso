@@ -1,3 +1,4 @@
+from math import isclose
 import numpy as np
 import pandas as pd
 
@@ -12,10 +13,42 @@ def get_random_names(ref: str, n: int) -> pd.Series:
     return df[col].sample(n, replace=True)
 
 
-def process_names(df: pd.DataFrame) -> np.ndarray:
-    n = df.shape[0]
+def get_mask_man(gender_ser: pd.Series, men_name_nb_proba: float) -> np.ndarray:
+    """Get mask that states if the person has a 'man's name'.
+
+    This is done to take into account that non-binary people
+    may or may not have one, and it's used in the people's
+    mocking process.
+    """
+    is_male = (gender_ser == "M").values
+    is_nb   = (gender_ser == "X").values
+
+    # Border cases
+    if isclose(men_name_nb_proba, 1.00):
+        return np.logical_or(is_male, is_nb).astype(int)
+    elif isclose(men_name_nb_proba, 0.00):
+        return is_male.astype(int)
+
+    # Inside cases
+    assert (0.00 < men_name_nb_proba) and (men_name_nb_proba < 1.00), (
+        "'men_name_nb_pc' value must be between 0.00 and 1.00 (both inclusive)."
+    )
+
+    n = gender_ser.shape[0]
     non_binary_w_men_name = np.random.random(n)
 
+    return np.logical_or(
+        is_male,
+        np.logical_and(
+            is_nb,
+            (non_binary_w_men_name < men_name_nb_proba),
+        ),
+    ).astype(int)
+
+
+def process_names(df: pd.DataFrame) -> np.ndarray:
+    n = df.shape[0]
+    
     mixed_names = np.vstack(
         (
             get_random_names("mujeres", n).values,
@@ -23,10 +56,8 @@ def process_names(df: pd.DataFrame) -> np.ndarray:
         )
     )
     assert mixed_names.shape == (2, n), f"Invalid shape: {mixed_names.shape} (exp={(2, n)})"
-    mask_man = np.logical_or(
-        (df["genero"] == "M").values,
-        non_binary_w_men_name,
-    ).astype(int)
+
+    mask_man = get_mask_man(df["genero"], 0.50)
 
     nombre = mixed_names[mask_man, np.arange(n)]
     assert nombre.shape == (n,), f"Invalid shape: {nombre.shape} (exp={(n,)})"
