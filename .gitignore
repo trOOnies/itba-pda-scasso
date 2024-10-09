@@ -1,10 +1,9 @@
 # Proyecto
 .vscode
-./local/
-local/*/*.csv
-local/*/*.pq
+local/
 mentre/logs/
 mentre/dags/local/*.csv
+mentre/dags/local/*.json
 mentre/dags/local/*.pq
 
 # Byte-compiled / optimized / DLL files
