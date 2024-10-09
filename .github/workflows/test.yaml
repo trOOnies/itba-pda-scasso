@@ -10,6 +10,17 @@ on:
       - develop
       - main
 
+env:
+  AIRFLOW_UID: 999
+  DB_HOST: db_host
+  DB_PORT: 9999
+  DB_DATABASE: db_database
+  DB_USER: db_user
+  DB_PASSWORD: db_password
+  DB_SCHEMA: db_schema
+  ACWT_URL: acwt_url
+  ACWT_API_KEY: acwt_api_key
+
 permissions:
   contents: read
 
