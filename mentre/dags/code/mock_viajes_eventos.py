@@ -25,7 +25,9 @@ def get_viajes(path: str) -> pd.DataFrame:
         default_category=TRIP_END.ABIERTO,
     )
     viajes = viajes.drop(TRIP_END.ALL_CLOSED, axis=1)
-    viajes["last_evento_id"] = viajes["last_evento_id"].map(TRIP_END.TO_EVENTO_ID).astype(int)
+    viajes["last_evento_id"] = (
+        viajes["last_evento_id"].map(TRIP_END.TO_EVENTO_ID).astype(int)
+    )
     viajes["tiempo_inicio"] = pd.to_datetime(viajes["tiempo_inicio"])
     viajes["tiempo_fin"] = pd.to_datetime(viajes["tiempo_fin"])
 
@@ -59,9 +61,7 @@ def get_end_canceled_rides(viajes: pd.DataFrame) -> pd.DataFrame:
     """Get ride cancelation events."""
     eventos_not_ok_final = {}
     for event in TRIP_END.ALL_CLOSED_NOT_OK:
-        viajes_i = viajes[
-            viajes["last_evento_id"] == TRIP_END.TO_EVENTO_ID[event]
-        ]
+        viajes_i = viajes[viajes["last_evento_id"] == TRIP_END.TO_EVENTO_ID[event]]
 
         viajes_i_len = viajes_i.shape[0]
         if viajes_i_len == 0:
@@ -84,7 +84,9 @@ def get_end_canceled_rides(viajes: pd.DataFrame) -> pd.DataFrame:
                         np.random.randint(15, 1200, viajes_i_len).reshape((-1,)),
                         unit="sec",
                     )
-                ).rename("tiempo_evento").reset_index(drop=True),
+                )
+                .rename("tiempo_evento")
+                .reset_index(drop=True),
             ),
             axis=1,
         )
@@ -139,8 +141,12 @@ def get_eventos_uncorrected(viajes_cerrado_corrected: pd.DataFrame) -> pd.DataFr
             ),
             (
                 viajes_cerrado_corrected["tiempo_inicio"]
-                + pd.to_timedelta(viajes_cerrado_corrected["duracion_viaje_seg"] / 2, unit="sec")
-            ).rename("tiempo_evento").reset_index(drop=True),
+                + pd.to_timedelta(
+                    viajes_cerrado_corrected["duracion_viaje_seg"] / 2, unit="sec"
+                )
+            )
+            .rename("tiempo_evento")
+            .reset_index(drop=True),
         ),
         axis=1,
     )
@@ -163,7 +169,9 @@ def get_eventos_corrected(viajes_cerrado_corrected: pd.DataFrame) -> pd.DataFram
                 TRIP_END.event_array((viajes_cerrado_corrected_len,), TRIP_END.CERRADO),
                 name="evento_id",
             ),
-            viajes_cerrado_corrected["tiempo_fin"].rename("tiempo_evento").reset_index(drop=True),
+            viajes_cerrado_corrected["tiempo_fin"]
+            .rename("tiempo_evento")
+            .reset_index(drop=True),
         ),
         axis=1,
     )
@@ -212,10 +220,22 @@ def mock_viajes_eventos_hlf(path_viajes: str) -> pd.DataFrame:
 
     eventos_end = get_eventos_end(viajes_cerrado)
 
-    eventos = [eventos_start, eventos_not_ok_final, eventos_uncorrected, eventos_corrected, eventos_end]
+    eventos = [
+        eventos_start,
+        eventos_not_ok_final,
+        eventos_uncorrected,
+        eventos_corrected,
+        eventos_end,
+    ]
     logging.info(f"Event DataFrames shapes: {[df.shape for df in eventos]}")
     eventos = pd.concat(eventos, axis=0).sort_values("tiempo_evento", ignore_index=True)
-    del eventos_start, eventos_not_ok_final, eventos_uncorrected, eventos_corrected, eventos_end
+    del (
+        eventos_start,
+        eventos_not_ok_final,
+        eventos_uncorrected,
+        eventos_corrected,
+        eventos_end,
+    )
 
     logging.info("Events formed and ready to be saved and loaded.")
     return eventos

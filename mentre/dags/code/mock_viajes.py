@@ -76,7 +76,9 @@ def mock_timestamps(closed_col: pd.Series) -> pd.DataFrame:
 
     df.loc[:, "duracion_viaje_seg"] = None
     df.loc[:, "tiempo_fin"] = None
-    df["duracion_viaje_seg"][closed_col] = np.random.randint(120, 3600, closed_col.sum())
+    df["duracion_viaje_seg"][closed_col] = np.random.randint(
+        120, 3600, closed_col.sum()
+    )
     df["tiempo_fin"][closed_col] = df["tiempo_inicio"][closed_col] + pd.to_timedelta(
         df["duracion_viaje_seg"][closed_col],
         unit="sec",
@@ -95,7 +97,9 @@ def mock_financials(distance_m: pd.Series, is_comfort: pd.Series) -> pd.DataFram
     assert is_comfort.size == n
 
     df = pd.DataFrame(distance_m.rename("precio_bruto_usuario") * 1.50)
-    df["precio_bruto_usuario"] = df["precio_bruto_usuario"] * (1.00 + is_comfort.astype(int) * 0.15)
+    df["precio_bruto_usuario"] = df["precio_bruto_usuario"] * (
+        1.00 + is_comfort.astype(int) * 0.15
+    )
     df["precio_bruto_usuario"] += 1.0
 
     df["descuento_pc"] = random_categories_array(
@@ -195,11 +199,14 @@ def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
     return df
 
 
-def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.DataFrame:
+def merge_drivers_usuarios(
+    drivers: pd.DataFrame,
+    usuarios: pd.DataFrame,
+) -> pd.DataFrame:
     """Merge drivers and users for the mock_viajes task."""
-    assert drivers.shape[0] == usuarios.shape[0], (
-        f"The rows don't match: {drivers.shape[0]} in drivers vs. {usuarios.shape[0]} in usuarios"
-    )
+    d = drivers.shape[0]
+    u = usuarios.shape[0]
+    assert d == u, f"The rows don't match: {d} in drivers vs. {u} in usuarios"
     viajes = pd.concat((drivers, usuarios), axis=1)
     viajes = pd.concat(
         (

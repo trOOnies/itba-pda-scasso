@@ -56,7 +56,10 @@ def ddl_query(statement: str, filename: str):
 def dml_query(statement: str, filename: str):
     """Allows: delete, insert."""
     statement_ = statement.lower()
-    assert statement_ in {"delete", "insert"}, "Only certain DDL statements are allowed."
+    assert statement_ in {
+        "delete",
+        "insert",
+    }, "Only certain DDL statements are allowed."
 
     assert filename.endswith(".sql")
     assert "." not in filename[:-4]
@@ -87,7 +90,9 @@ def select_query(filename: str):
     return run_query
 
 
-def check_mock_is_full(engine, table_name: str, is_fixed_table: bool = False) -> str | None:
+def check_mock_is_full(
+    engine, table_name: str, is_fixed_table: bool = False
+) -> str | None:
     """Check if the existing table is full.
 
     Returns the CSV path if it is. Else returns None.
@@ -111,7 +116,9 @@ def check_mock_is_full(engine, table_name: str, is_fixed_table: bool = False) ->
             else f"local/mocked_{table_name}.csv"
         )
 
-        assert os.path.exists(path), f"Table '{table_name}' is full but local CSV doesn't exist."
+        assert os.path.exists(
+            path
+        ), f"Table '{table_name}' is full but local CSV doesn't exist."
         return path
     return None
 

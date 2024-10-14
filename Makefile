@@ -1,4 +1,4 @@
-.PHONY: help venv install fmt lint clean-lint test clean-test clean-pyc build clean-build clean
+.PHONY: help venv install fmt lint clean-lint test clean-test clean-pyc clean
 .DEFAULT_GOAL := help
 
 define PRINT_HELP_PYSCRIPT
@@ -36,7 +36,7 @@ install: ## Install the dependencies
 	python3 -m pip install -r mentre/requirements_test.txt
 
 fmt: ## [ruff] Format the code
-	ruff format
+	ruff format --target-version py310
 
 lint: ## [ruff] Run lint checks
 	ruff check --output-format=concise
@@ -56,16 +56,7 @@ clean-pyc: ## Remove Python compiled bytecode files
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name 'pycache' -exec rm -fr {} +
 
-build: ## Build the package
-	python3 -m build
-
-clean-build: ## Delete all build-related artifacts
-	rm -rf build/
-	rm -rf dist/
-	rm -rf xxx.egg-info/
-
 clean: ## Remove all lint, test, coverage, compiled Python and build artifacts
 	make clean-lint
 	make clean-test
 	make clean-pyc
-	make clean-build
