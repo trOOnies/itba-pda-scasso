@@ -8,7 +8,7 @@ Repositorio del TP para ITBA Python Data Applications.
 
 ## Temática seleccionada
 
-Tenemos un negocio de *ridesharing* llamado **Mentre**.
+Tenemos un negocio de *ridesharing* llamado **Mentre** que opera en CABA, Argentina.
 Nuestra base de datos se encuentra en Redshift, y queremos desarrollar un ETL basado en Airflow.
 
 <img src="docs/mentre_logo.png" width=200 alt="Logo ficticio de Mentre"></img>
@@ -77,9 +77,11 @@ Para el desarrollador: ante cualquier inconveniente que no pueda ser resuelto po
 
 - 🐍 Python
     - airflow
+    - pandas (con CSV y Parquet)
     - pytest
     - requests (para la API de AccuWeather)
     - sqlalchemy (para el cluster de RedShift provisto por la universidad)
+- 🏭 Amazon Redshift
 - 🐋 Docker & Docker Compose
 - 🐙 GitHub Actions
 
@@ -87,7 +89,24 @@ Para el desarrollador: ante cualquier inconveniente que no pueda ser resuelto po
 
 ### Base de datos
 
+Utilizamos el clúster de Amazon Redshift proveída por la universidad. En el schema del proyecto encontraremos las siguientes tablas:
+- `drivers`: Registro de la información de los _drivers_ o conductores. Cada fila es un conductor distinto.
+- `usuarios`: Similar a `drivers` pero cada fila es un usuario de Mentre.
+- `viajes`: Almacena la información de los viajes efectuados. Cada fila es un viaje con su propio id, y relaciona un id de driver y un id de usuario en este viaje. La mayoría de la información útil se encuentra en esta tabla.
+- `viajes_eventos`: Se encarga de registrar los llamados "eventos" del viaje en cuestión. Un viaje puede tener uno de los `evento_id` catalogados, y este evento puede ser "reemplazado" con un evento de `tiempo_evento` posterior, aunque el historial completo es útil en términos de auditoría y mejora continua. El camino usual es empezar en **0** y terminar en **1**, siendo cualquier otro contratiempo catalogado por el resto de los `evento_id`. Del mismo modo, si un viaje fue corregido posteriormente, su `evento_id` finalmente será **1**.
+    - **0**: abierto
+    - **1**: end_cerrado
+    - **2**: end_cancelado_usuario
+    - **3**: end_cancelado_driver
+    - **4**: end_cancelado_mentre
+    - **999**: end_otros
+
 <img src="docs/viajes_ER.png" alt="Diagrama de relaciones entre entidades (DER) de viajes"></img>
+
+Para las tablas de clima en CABA hemos propuesto la siguiente estructura:
+- `clima_id`: Almacena los posibles valores de la API de AccuWeather en cuanto al tipo cualitativo de clima. La totalidad de estos valores puede encontrarse en el archivo `clima_id.csv` de la subcarpeta `tables` (ver siguiente sección).
+- `clima`: Registra cada 1 hora el clima en CABA según los datos de la API de AccuWeather. No sólo guardamos la `temperatura_c` _(temperatura en Celsius)_, sino otros factores que nos pueden ser de interés analítico como la `humedad_relativa_pp` _(humedad relativa en puntos porcentuales 0-100)_, la `precipitacion_mm`, el `indice_uv`, etc.
+
 <img src="docs/clima_ER.png" alt="Diagrama de relaciones entre entidades (DER) de clima"></img>
 
 ### Airflow
