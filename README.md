@@ -1,4 +1,7 @@
 # Python Data Applications
+
+<img class="center" src="docs/itba_logo.png" width=200 alt="Logo del ITBA"></img>
+
 Alumno: Scasso, Facundo M.
 
 Repositorio del TP para ITBA Python Data Applications.
@@ -7,6 +10,8 @@ Repositorio del TP para ITBA Python Data Applications.
 
 Tenemos un negocio de *ridesharing* llamado **Mentre**.
 Nuestra base de datos se encuentra en Redshift, y queremos desarrollar un ETL basado en Airflow.
+
+<img src="docs/mentre_logo.png" width=200 alt="Logo ficticio de Mentre"></img>
 
 ## Utilización del código
 
@@ -26,6 +31,8 @@ make install
 
 https://developer.accuweather.com/accuweather_custom/package/purchase/free/free
 
+<img src="docs/accuweather.png" alt="Página de AccuWeather - Registro"></img>
+
 1. Ingresar los datos que pide AccuWeather.
 2. Verificar la casilla de correo haciendo click en el link que llega por email.
 3. Hacer login inmediatamente y configurar una contraseña personal para AccuWeather.
@@ -33,13 +40,13 @@ https://developer.accuweather.com/accuweather_custom/package/purchase/free/free
 5. Una vez creada la app, copiar su API key. AccuWeather permite hasta _50 llamadas diarias_ con el plan gratuito.
 6. Poner esta API key en el archivo `.env` como una variable de entorno de nombre **ACWT_API_KEY**.
 
+<img src="docs/acwt_api_key.png" alt="Página de AccuWeather - API key de la app"></img>
+
 ### Levantar Airflow
 
 Para levantar Airflow se necesita utilizar Docker. Para Windows es necesario contar con WSL y Docker Desktop abierto y corriendo.
 
-Poner el archivo `.env` -provisto al profesor- en la carpeta `mentre/`.
-
-Luego, ubicarse en dicha carpeta `mentre/` y levantar Airflow mediante los siguientes comandos de Docker Compose:
+Poner el archivo `.env` -provisto al profesor- en la carpeta `mentre/`. Luego, ubicarse en dicha carpeta y levantar Airflow mediante los siguientes comandos de Docker Compose:
 ```bash
 cd mentre
 docker compose up airflow-init
@@ -48,7 +55,7 @@ docker compose up
 
 ### Airflow DAGs
 
-Para acceder a Airflow, ir a http://localhost:8080/home desde un explorador y utilizar el usuario y contraseña provisto al profesor.
+Una vez levantado Airflow, ir a http://localhost:8080/home desde un explorador para acceder, utilizando el usuario y contraseña provisto al profesor.
 
 Se encontrarán con los siguientes DAGs:
 - `create_database`: Crea las tablas del proyecto con sus correspondientes esquemas de tipo de datos en el schema `DB_SCHEMA` del archivo `.env`.
@@ -57,6 +64,8 @@ Se encontrarán con los siguientes DAGs:
     - Si no existe una tabla requerida, levanta un error.
     - Si existe la tabla requerieda pero no está vacía, saltea todos los cálculos del task correspondiente.
 - `get_clima` (c/hora): Llama a la API de AccuWeather para pedir el detalle meteorológico actual de la Ciudad Autónoma de Buenos Aires (Argentina), lo transforma a tabla, filtra las columnas necesarias y lo sube a Redshift.
+
+<img src="docs/airflow_dags.png" alt="Airflow - DAGs del proyecto"></img>
 
 El camino usual es:
 1. `create_database`
@@ -75,6 +84,11 @@ Para el desarrollador: ante cualquier inconveniente que no pueda ser resuelto po
 - 🐙 GitHub Actions
 
 ## Composición del repositorio
+
+### Base de datos
+
+<img src="docs/viajes_ER.png" alt="Diagrama de relaciones entre entidades (DER) de viajes"></img>
+<img src="docs/clima_ER.png" alt="Diagrama de relaciones entre entidades (DER) de clima"></img>
 
 ### Airflow
 
@@ -130,4 +144,4 @@ Este workflow adicional sólo corre cuando se hace un PR a main. Genera un statu
 
 Todo el código desarrollado se encuentra bajo la licencia **GPL-3.0**. Pueden encontrar su contenido en el archivo `LICENSE`, pero recomendamos leer el resumen de la misma [aquí](https://choosealicense.com/licenses/gpl-3.0/).
 
-Disclaimer: Este es un proyecto personal, para el curso de ITBA Python Data Applications y en categoría de alumno.
+Disclaimers: Este es un proyecto personal, para el curso de ITBA Python Data Applications y en categoría de alumno. El logo de Mentre es un logo ficticio hecho mediante Microsoft Copilot.
