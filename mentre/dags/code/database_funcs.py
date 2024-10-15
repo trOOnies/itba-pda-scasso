@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
+from code.utils import start_end_log
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -44,11 +45,10 @@ def ddl_query(statement: str, filename: str):
     assert "." not in filename[:-4]
     assert "~" not in filename[:-4]
 
+    @start_end_log(f"REDSHIFT {statement_.upper()} QUERY")
     def run_query() -> None:
-        logging.info(f"[START] REDSHIFT {statement_.upper()} QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
         execute_query(engine, statement_, filename)
-        logging.info(f"[END] REDSHIFT {statement_.upper()} QUERY")
 
     return run_query
 
@@ -65,11 +65,10 @@ def dml_query(statement: str, filename: str):
     assert "." not in filename[:-4]
     assert "~" not in filename[:-4]
 
+    @start_end_log(f"REDSHIFT {statement_.upper()} QUERY")
     def run_query() -> None:
-        logging.info(f"[START] REDSHIFT {statement_.upper()} QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
         execute_query(engine, statement_, filename)
-        logging.info(f"[END] REDSHIFT {statement_.upper()} QUERY")
 
     return run_query
 
@@ -79,13 +78,12 @@ def select_query(filename: str):
     assert "." not in filename[:-4]
     assert "~" not in filename[:-4]
 
+    @start_end_log("REDSHIFT SELECT QUERY")
     def run_query() -> None:
-        logging.info("[START] REDSHIFT SELECT QUERY")
         engine = create_engine(REDSHIFT_CONN_STR)
         result = execute_query(engine, "select", filename)
         result = result.fetchall()
         logging.info(result)
-        logging.info("[END] REDSHIFT SELECT QUERY")
 
     return run_query
 

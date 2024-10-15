@@ -1,6 +1,5 @@
 """Tasks for creating mock data in Redshift."""
 
-import logging
 import pandas as pd
 from sqlalchemy import create_engine
 
@@ -11,10 +10,10 @@ from code.mock_clima import mock_clima_hlf
 from code.mock_people import mock_drivers_f, mock_usuarios_f
 from code.mock_viajes import mock_viajes_hlf
 from code.mock_viajes_eventos import mock_viajes_eventos_hlf
+from code.utils import start_end_log
 
-logger = logging.getLogger(__name__)
 
-
+@start_end_log("MOCK DRIVERS")
 def mock_drivers() -> str:
     """Mock drivers table."""
     return mock_base(
@@ -25,6 +24,7 @@ def mock_drivers() -> str:
     )
 
 
+@start_end_log("MOCK USUARIOS")
 def mock_usuarios() -> str:
     """Mock users table."""
     return mock_base(
@@ -35,10 +35,9 @@ def mock_usuarios() -> str:
     )
 
 
+@start_end_log("MOCK VIAJES")
 def mock_viajes(**kwargs) -> str:
     """Mock trips table."""
-    logging.info("[START] MOCK VIAJES")
-
     engine = create_engine(REDSHIFT_CONN_STR)
     path = check_mock_is_full(engine, "viajes")
     if path is not None:
@@ -50,15 +49,12 @@ def mock_viajes(**kwargs) -> str:
     viajes = mock_viajes_hlf(path_usuarios, path_drivers)
 
     path = save_mock(viajes, "viajes", engine)
-
-    logging.info("[END] MOCK VIAJES")
     return path
 
 
+@start_end_log("MOCK VIAJES_EVENTOS")
 def mock_viajes_eventos(**kwargs) -> None:
     """Mock trips events table."""
-    logging.info("[START] MOCK VIAJES_EVENTOS")
-
     engine = create_engine(REDSHIFT_CONN_STR)
     path = check_mock_is_full(engine, "viajes_eventos")
     if path is not None:
@@ -68,12 +64,10 @@ def mock_viajes_eventos(**kwargs) -> None:
     eventos = mock_viajes_eventos_hlf(path_viajes)
 
     save_mock(eventos, "viajes_eventos", engine)
-    logging.info("[END] MOCK VIAJES_EVENTOS")
 
 
+@start_end_log("MOCK CLIMA_ID")
 def mock_clima_id() -> str:
-    logging.info("[START] MOCK CLIMA_ID")
-
     engine = create_engine(REDSHIFT_CONN_STR)
     path = check_mock_is_full(engine, "clima_id", is_fixed_table=True)
     if path is not None:
@@ -83,14 +77,11 @@ def mock_clima_id() -> str:
     df = pd.read_csv(path)
     save_to_sql(df, "clima_id", engine)
 
-    logging.info("[END] MOCK CLIMA_ID")
-
     return path
 
 
-def mock_clima(**kwargs):
-    logging.info("[START] MOCK CLIMA")
-
+@start_end_log("MOCK CLIMA")
+def mock_clima(**kwargs) -> None:
     engine = create_engine(REDSHIFT_CONN_STR)
     path = check_mock_is_full(engine, "clima", is_fixed_table=True)
     if path is not None:
@@ -100,4 +91,3 @@ def mock_clima(**kwargs):
     clima = mock_clima_hlf(path_clima_id)
 
     save_mock(clima, "clima", engine)
-    logging.info("[END] MOCK CLIMA")

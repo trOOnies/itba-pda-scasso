@@ -1,3 +1,7 @@
+"""Utils functions."""
+
+from functools import wraps
+import logging
 import numpy as np
 from typing import Any
 
@@ -20,3 +24,16 @@ def random_categories_array(
     cats_ixs = np.searchsorted(ths, arr)
 
     return cats[cats_ixs]
+
+
+def start_end_log(task_name: str):
+    """Decorator for logging corresponding [START] and [END] in Airflow."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            logging.info(f"[START] {task_name}")
+            result = func(*args, **kwargs)
+            logging.info(f"[END] {task_name}")
+            return result
+        return wrapper
+    return decorator

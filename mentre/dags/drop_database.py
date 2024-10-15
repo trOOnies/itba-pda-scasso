@@ -13,6 +13,8 @@ with DAG(
     "drop_db_redshift",
     description="Drop tables in Redshift",
 ) as dag:
+    # Tasks
+
     try_redshift_connection_task = PythonOperator(
         task_id="try_redshift_connection_task",
         python_callable=select_query("tables.sql"),
@@ -43,6 +45,8 @@ with DAG(
         task_id="drop_drivers",
         python_callable=ddl_query("drop", "drivers.sql"),
     )
+
+    # Task dependencies
 
     try_redshift_connection_task >> drop_clima_task >> drop_clima_id_task
     try_redshift_connection_task >> drop_viajes_eventos_task >> drop_viajes_task

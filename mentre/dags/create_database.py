@@ -10,6 +10,8 @@ with DAG(
     "create_db_redshift",
     description="Create the necessary tables for Mentre in Redshift",
 ) as dag:
+    # Tasks
+
     try_redshift_connection_task = PythonOperator(
         task_id="try_redshift_connection_task",
         python_callable=select_query("tables.sql"),
@@ -40,6 +42,8 @@ with DAG(
         task_id="create_clima",
         python_callable=ddl_query("create", "clima.sql"),
     )
+
+    # Task dependencies
 
     try_redshift_connection_task >> create_clima_id_task >> create_clima_task
     (

@@ -39,19 +39,15 @@ def mock_base(
     mock_f,
 ) -> str:
     """Base function for the mocking of a table."""
-    logging.info(f"[START] MOCK {table_name.upper()}")
-
     engine = create_engine(REDSHIFT_CONN_STR)
     path = check_mock_is_full(engine, table_name)
     if path is not None:
         return path
 
-    logging.info(f"Creando items para {table_name}...")
+    logging.info(f"Creating items for {table_name}...")
     n_items = randint(n_min, n_max)
     df = mock_f(n_items)
-    logging.info(f"Items para {table_name} creados.")
+    logging.info(f"Items for {table_name} created.")
 
     path = save_mock(df, table_name, engine)
-
-    logging.info(f"[END] MOCK {table_name.upper()}")
     return path

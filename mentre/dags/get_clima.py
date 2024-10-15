@@ -28,6 +28,8 @@ with DAG(
     # start_date=datetime(2024, 1, 1),
     # catchup=False,
 ) as dag:
+    # Tasks
+
     try_redshift_connection_task = PythonOperator(
         task_id="try_redshift_connection_task",
         python_callable=select_query("tables.sql"),
@@ -50,6 +52,8 @@ with DAG(
         python_callable=load_to_redshift,
         op_kwargs={"redshift_table": REDSHIFT_TABLE},
     )
+
+    # Task dependencies
 
     # We first try the Redshift connection,
     # to avoid wasting calls to the AccuWeather API

@@ -21,6 +21,8 @@ with DAG(
     "mock_data_redshift",
     description="Generate mock data and replace contents in Redshift",
 ) as dag:
+    # Tasks
+
     try_redshift_connection_task = PythonOperator(
         task_id="try_redshift_connection_task",
         python_callable=select_query("tables.sql"),
@@ -52,11 +54,12 @@ with DAG(
         python_callable=mock_clima,
     )
 
+    # Task dependencies
+
     (
         try_redshift_connection_task
         >> [mock_drivers_task, mock_usuarios_task]
         >> mock_viajes_task
     )
     mock_viajes_task >> mock_viajes_eventos_task
-
     try_redshift_connection_task >> mock_clima_id_task >> mock_clima_task
