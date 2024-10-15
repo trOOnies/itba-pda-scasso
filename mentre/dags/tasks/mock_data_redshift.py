@@ -88,6 +88,8 @@ def mock_clima(**kwargs) -> None:
         return
 
     path_clima_id = kwargs["ti"].xcom_pull(task_ids="mock_clima_id")
-    clima = mock_clima_hlf(path_clima_id)
+    path_viajes = kwargs["ti"].xcom_pull(task_ids="mock_viajes")
+
+    clima = mock_clima_hlf(path_clima_id, path_viajes)
 
     save_mock(clima, "clima", engine)

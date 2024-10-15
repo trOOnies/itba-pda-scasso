@@ -66,10 +66,10 @@ def mock_timestamps(closed_col: pd.Series) -> pd.DataFrame:
     df = pd.DataFrame(
         (
             np.full(n, dt.datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc))
-            + pd.to_timedelta(np.random.randint(0, 119, n), unit="days")
-            + pd.to_timedelta(np.random.randint(0, 23, n), unit="hr")
-            + pd.to_timedelta(np.random.randint(0, 59, n), unit="min")
-            + pd.to_timedelta(np.random.randint(0, 59, n), unit="sec")
+            + pd.to_timedelta(np.random.randint(0, 120, n), unit="days")
+            + pd.to_timedelta(np.random.randint(0, 24, n), unit="hr")
+            + pd.to_timedelta(np.random.randint(0, 60, n), unit="min")
+            + pd.to_timedelta(np.random.randint(0, 60, n), unit="sec")
         ),
         columns=["tiempo_inicio"],
     )
@@ -77,7 +77,9 @@ def mock_timestamps(closed_col: pd.Series) -> pd.DataFrame:
     df.loc[:, "duracion_viaje_seg"] = None
     df.loc[:, "tiempo_fin"] = None
     df["duracion_viaje_seg"][closed_col] = np.random.randint(
-        120, 3600, closed_col.sum()
+        120,
+        3601,
+        closed_col.sum(),
     )
     df["tiempo_fin"][closed_col] = df["tiempo_inicio"][closed_col] + pd.to_timedelta(
         df["duracion_viaje_seg"][closed_col],
@@ -226,7 +228,7 @@ def merge_drivers_usuarios(
 def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
     """High level function for the mocking of viajes."""
     usuarios = get_usuarios(path_usuarios)
-    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
+    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])  # ! both inclusive
     logging.info(f"usuarios: {usuarios.shape[0]}")
     logging.info(f"n_extra_viajes: {n_extra_viajes}")
 

@@ -61,5 +61,5 @@ with DAG(
         >> [mock_drivers_task, mock_usuarios_task]
         >> mock_viajes_task
     )
-    mock_viajes_task >> mock_viajes_eventos_task
+    mock_viajes_task >> [mock_viajes_eventos_task, mock_clima_task]
     try_redshift_connection_task >> mock_clima_id_task >> mock_clima_task

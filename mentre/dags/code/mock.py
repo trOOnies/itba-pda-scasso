@@ -45,7 +45,7 @@ def mock_base(
         return path
 
     logging.info(f"Creating items for {table_name}...")
-    n_items = randint(n_min, n_max)
+    n_items = randint(n_min, n_max)  # ! both inclusive
     df = mock_f(n_items)
     logging.info(f"Items for {table_name} created.")
 

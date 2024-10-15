@@ -2,6 +2,7 @@
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+import datetime as dt
 import os
 
 from code.database_funcs import select_query
@@ -21,12 +22,10 @@ REDSHIFT_TABLE = "clima"
 with DAG(
     "get_clima",
     description="ETL pipeline for climate data",
-    # default_args={
-    #     "retries": 1,
-    # },
-    # schedule_interval="@hourly",
-    # start_date=datetime(2024, 1, 1),
-    # catchup=False,
+    default_args={"retries": 1},
+    schedule_interval="@hourly",
+    start_date=dt.datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc),
+    catchup=False,
 ) as dag:
     # Tasks
 
