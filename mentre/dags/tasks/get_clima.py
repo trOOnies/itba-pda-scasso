@@ -35,7 +35,7 @@ def extract_data(**kwargs) -> str:
             "apikey": os.environ["ACWT_API_KEY"],
             "language": "en-us",
             "details": True,
-        }
+        },
     )
     if resp.status_code != 200:
         logging.error(resp.text)

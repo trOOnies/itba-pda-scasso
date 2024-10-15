@@ -10,16 +10,16 @@ def parse_accuweather_api_data(data: dict) -> dict:
             data["LocalObservationDateTime"],
             utc=True,
         ).round("60min"),
-        "clima_id":             data["WeatherIcon"],
-        "humedad_relativa_pp":  data["RelativeHumidity"],
-        "indice_uv":            data["UVIndex"],
-        "nubes_pp":             data["CloudCover"],
-        "temperatura_c":        data["Temperature"]["Metric"]["Value"],
-        "sensacion_termica_c":  data["RealFeelTemperature"]["Metric"]["Value"],
+        "clima_id": data["WeatherIcon"],
+        "humedad_relativa_pp": data["RelativeHumidity"],
+        "indice_uv": data["UVIndex"],
+        "nubes_pp": data["CloudCover"],
+        "temperatura_c": data["Temperature"]["Metric"]["Value"],
+        "sensacion_termica_c": data["RealFeelTemperature"]["Metric"]["Value"],
         "velocidad_viento_kmh": data["Wind"]["Speed"]["Metric"]["Value"],
-        "visibilidad_km":       data["Visibility"]["Metric"]["Value"],
-        "presion_mb":           data["Pressure"]["Metric"]["Value"],
-        "precipitacion_mm":     data["Precip1hr"]["Metric"]["Value"],
+        "visibilidad_km": data["Visibility"]["Metric"]["Value"],
+        "presion_mb": data["Pressure"]["Metric"]["Value"],
+        "precipitacion_mm": data["Precip1hr"]["Metric"]["Value"],
     }
     new_data.update(
         {
@@ -40,7 +40,8 @@ def mock_clima_hlf(path_clima_id: str) -> pd.DataFrame:
     data = data[0]
 
     parsed_data = parse_accuweather_api_data(data)
-    df = pd.DataFrame({k: 100 * [v] for k, v in parsed_data.items()}).reset_index(drop=False)
+    df = pd.DataFrame({k: 100 * [v] for k, v in parsed_data.items()})
+    df = df.reset_index(drop=False)
     df = df.rename({"index": "id"}, axis=1)
     return df
 

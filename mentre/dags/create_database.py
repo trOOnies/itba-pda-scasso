@@ -42,5 +42,9 @@ with DAG(
     )
 
     try_redshift_connection_task >> create_clima_id_task >> create_clima_task
-    try_redshift_connection_task >> [create_drivers_task, create_usuarios_task] >> create_viajes_task
+    (
+        try_redshift_connection_task
+        >> [create_drivers_task, create_usuarios_task]
+        >> create_viajes_task
+    )
     create_viajes_task >> create_viajes_eventos_task
