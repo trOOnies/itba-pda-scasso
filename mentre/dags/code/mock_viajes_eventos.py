@@ -81,7 +81,7 @@ def get_end_canceled_rides(viajes: pd.DataFrame) -> pd.DataFrame:
                 (
                     viajes_i["tiempo_inicio"]
                     + pd.to_timedelta(
-                        np.random.randint(15, 1200, viajes_i_len).reshape((-1,)),
+                        np.random.randint(15, 1201, viajes_i_len).reshape((-1,)),
                         unit="sec",
                     )
                 )

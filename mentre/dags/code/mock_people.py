@@ -109,7 +109,7 @@ def mock_people(n: int, m_thresh: float, f_thresh: float) -> pd.DataFrame:
 
 
 def mock_ids(v_min: int, v_max: int, size: int) -> np.ndarray:
-    """Mock non-repeating ids. Both ends are inclusive."""
+    """Mock non-repeating ids. v_min inclusve, v_max exclusive."""
     while True:
         ids = np.random.randint(v_min, v_max, size=size)
         if np.unique(ids).size == size:

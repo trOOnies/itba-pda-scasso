@@ -11,16 +11,16 @@ from sqlalchemy import create_engine
 from code.database import REDSHIFT_CONN_STR
 from code.database_funcs import append_df_to_redshift
 from code.mock_clima import transform_function
+from code.utils import start_end_log
 
 logger = logging.getLogger(__name__)
 
 BUENOS_AIRES_ID = 7894
 
 
+@start_end_log("EXTRACT DATA")
 def extract_data(**kwargs) -> str:
     """Extract the data from the API and save as parquet file."""
-    logging.info("[START] EXTRACT DATA")
-
     extracted_fd_path = kwargs["extracted_fd_path"]
     assert os.path.isdir(extracted_fd_path), f"Path not found: {extracted_fd_path}"
     path = os.path.join(
@@ -49,14 +49,12 @@ def extract_data(**kwargs) -> str:
         json.dump(data, f)
     logging.info(f"Extracted data saved to {path}")
 
-    logging.info("[END] EXTRACT DATA")
     return path
 
 
+@start_end_log("TRANSFORM DATA")
 def transform_data(**kwargs) -> str:
     """Transform the data and save it as parquet file."""
-    logging.info("[START] TRANSFORM DATA")
-
     path_extr = kwargs["ti"].xcom_pull(task_ids="extract_data")
     with open(path_extr, "r") as f:
         data = json.load(f)
@@ -78,14 +76,12 @@ def transform_data(**kwargs) -> str:
     df.to_csv(transformed_path[:-3] + ".csv", index=False)
     logging.info(f"Transformed data saved to {transformed_path}")
 
-    logging.info("[END] TRANSFORM DATA")
     return transformed_path
 
 
+@start_end_log("LOAD TO REDSHIFT")
 def load_to_redshift(**kwargs) -> None:
     """Load transformed data to Amazon Redshift."""
-    logging.info("[START] LOAD TO REDSHIFT")
-
     path_df = kwargs["ti"].xcom_pull(task_ids="transform_data")
     df = pd.read_parquet(path_df)
     redshift_table = kwargs["redshift_table"]
@@ -93,5 +89,3 @@ def load_to_redshift(**kwargs) -> None:
     engine = create_engine(REDSHIFT_CONN_STR)
     append_df_to_redshift(df, redshift_table, engine)
     logging.info(f"Transformed data loaded into Redshift in table '{redshift_table}'")
-
-    logging.info("[END] LOAD TO REDSHIFT")
