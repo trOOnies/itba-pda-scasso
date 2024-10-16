@@ -10,12 +10,12 @@ from airflow.operators.python import BranchPythonOperator, PythonOperator
 from code.database_funcs import ddl_query, select_query
 from tasks.mock_data_redshift import (
     check_viajes_analisis,
+    get_mock_viajes,
+    get_mock_viajes_eventos,
     mock_clima,
     mock_clima_id,
     mock_drivers,
     mock_usuarios,
-    mock_viajes,
-    mock_viajes_eventos,
     viajes_analisis_is_full,
 )
 
@@ -41,11 +41,11 @@ with DAG(
     )
     mock_viajes_task = PythonOperator(
         task_id="mock_viajes",
-        python_callable=mock_viajes,
+        python_callable=get_mock_viajes(append=False),
     )
     mock_viajes_eventos_task = PythonOperator(
         task_id="mock_viajes_eventos",
-        python_callable=mock_viajes_eventos,
+        python_callable=get_mock_viajes_eventos(append=False),
     )
 
     mock_clima_id_task = PythonOperator(

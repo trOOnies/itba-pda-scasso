@@ -4,7 +4,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
-from code.database_funcs import check_mock_is_full, execute_query
+from code.database_funcs import check_mock_is_full
 from code.mock import mock_base, save_mock, save_to_sql
 from code.mock_clima import mock_clima_hlf
 from code.mock_people import mock_drivers_f, mock_usuarios_f
@@ -35,35 +35,55 @@ def mock_usuarios() -> str:
     )
 
 
-@start_end_log("MOCK VIAJES")
-def mock_viajes(**kwargs) -> str:
-    """Mock trips table."""
-    engine = create_engine(REDSHIFT_CONN_STR)
-    path = check_mock_is_full(engine, "viajes")
-    if path is not None:
-        return path
+def get_mock_viajes(append: bool):
+    @start_end_log("MOCK VIAJES")
+    def mock_viajes(**kwargs) -> str:
+        """Mock trips table."""
+        engine = create_engine(REDSHIFT_CONN_STR)
+        path = check_mock_is_full(engine, "viajes")
+        if append:
+            assert path is not None, "Path must exist when appending new trip data."
+        else:
+            if path is not None:
+                return path
 
-    path_drivers = kwargs["ti"].xcom_pull(task_ids="mock_drivers")
-    path_usuarios = kwargs["ti"].xcom_pull(task_ids="mock_usuarios")
+        path_drivers = kwargs["ti"].xcom_pull(task_ids="mock_drivers")
+        path_usuarios = kwargs["ti"].xcom_pull(task_ids="mock_usuarios")
 
-    viajes = mock_viajes_hlf(path_usuarios, path_drivers)
+        viajes = mock_viajes_hlf(path_usuarios, path_drivers)
 
-    path = save_mock(viajes, "viajes", engine)
-    return path
+        # First append new data, then save appended data separately
+        # If appending, return only new data path, else return the complete data path
+        path = save_mock(viajes, "viajes", engine, append=append)
+        if append:
+            path_append = save_mock(viajes, "viajes_append", engine, append=False)
+            return path_append
+        else:
+            return path
+
+    return mock_viajes
 
 
-@start_end_log("MOCK VIAJES_EVENTOS")
-def mock_viajes_eventos(**kwargs) -> None:
-    """Mock trips events table."""
-    engine = create_engine(REDSHIFT_CONN_STR)
-    path = check_mock_is_full(engine, "viajes_eventos")
-    if path is not None:
-        return
+def get_mock_viajes_eventos(append: bool):
+    @start_end_log("MOCK VIAJES_EVENTOS")
+    def mock_viajes_eventos(**kwargs) -> None:
+        """Mock trips events table."""
+        engine = create_engine(REDSHIFT_CONN_STR)
+        if append:
+            # NOTE: Appended local CSV will be checked further down
+            path = check_mock_is_full(engine, "viajes_eventos", check_local_csv=False)
+        else:
+            path = check_mock_is_full(engine, "viajes_eventos")
+            if path is not None:
+                return
 
-    path_viajes = kwargs["ti"].xcom_pull(task_ids="mock_viajes")
-    eventos = mock_viajes_eventos_hlf(path_viajes)
+        path_viajes = kwargs["ti"].xcom_pull(task_ids="mock_viajes")
+        eventos = mock_viajes_eventos_hlf(path_viajes)
 
-    save_mock(eventos, "viajes_eventos", engine)
+        # append: append new data (T) or replace data (F)
+        save_mock(eventos, "viajes_eventos", engine, append=append)
+
+    return mock_viajes_eventos
 
 
 @start_end_log("MOCK CLIMA_ID")

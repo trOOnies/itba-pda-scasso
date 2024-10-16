@@ -2,6 +2,7 @@
 
 import logging
 import pandas as pd
+import os
 from random import randint
 from sqlalchemy import create_engine
 
@@ -24,10 +25,15 @@ def save_to_sql(df: pd.DataFrame, table_name: str, engine) -> None:
     logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
 
 
-def save_mock(df: pd.DataFrame, table_name: str, engine) -> str:
+def save_mock(df: pd.DataFrame, table_name: str, engine, append: bool = False) -> str:
     """Save mock data to local CSV folder and to SQL."""
     path = f"local/mocked_{table_name}.csv"
-    df.to_csv(path, index=False)
+
+    if append:
+        df.to_csv(path, index=False, mode="a", header=not os.path.exists(path))
+    else:
+        df.to_csv(path, index=False)
+
     save_to_sql(df, table_name, engine)
     return path
 
