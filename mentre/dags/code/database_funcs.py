@@ -99,38 +99,44 @@ def check_mock_is_full(
     table_name: str,
     is_fixed_table: bool = False,
     check_local_csv: bool = True,
+    count_not_exists_as_empty: bool = False,
 ) -> str | None:
     """Check if the existing table is full.
 
     Returns the CSV path if it is. Else returns None.
     """
     assert all(ch not in table_name for ch in [".", "/", "\\"])
-    result = execute_query(
-        engine,
-        "select",
-        "check_exists.sql",
-        prev_kwargs={"DB_TABLE": table_name},
+    try:
+        result = execute_query(
+            engine,
+            "select",
+            "check_exists.sql",
+            prev_kwargs={"DB_TABLE": table_name},
+        )
+    except Exception:
+        if not count_not_exists_as_empty:
+            raise
+        result = None
+
+    is_full = result.first()[0] if result is not None else False
+    if not is_full:
+        return None
+    logging.info(
+        f"The table '{table_name}' exists and it's already full. Skipping data creation."
     )
-    is_full = result.first()[0]
-    if is_full:
-        logging.info(
-            f"The table '{table_name}' exists and it's already full. Skipping data creation."
-        )
 
-        if not check_local_csv:
-            return "fake/path"
+    if not check_local_csv:
+        return "fake/path"
+    path = (
+        f"tables/{table_name}.csv"
+        if is_fixed_table
+        else f"local/mocked_{table_name}.csv"
+    )
 
-        path = (
-            f"tables/{table_name}.csv"
-            if is_fixed_table
-            else f"local/mocked_{table_name}.csv"
-        )
-
-        assert os.path.exists(
-            path
-        ), f"Table '{table_name}' is full but local CSV doesn't exist."
-        return path
-    return None
+    assert os.path.exists(
+        path
+    ), f"Table '{table_name}' is full but local CSV doesn't exist."
+    return path
 
 
 def get_max_id(engine, table_name: str) -> int:

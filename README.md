@@ -60,16 +60,18 @@ Una vez levantado Airflow, ir a http://localhost:8080/home desde un explorador p
 Se encontrarán con los siguientes DAGs:
 - `create_database`: Crea las tablas del proyecto con sus correspondientes esquemas de tipo de datos en el schema `DB_SCHEMA` del archivo `.env`.
 - `drop_database`: Elimina completamente las tablas del proyecto.
+- `get_clima` (c/hora): Llama a la API de AccuWeather para pedir el detalle meteorológico actual de la Ciudad Autónoma de Buenos Aires (Argentina), lo transforma a tabla, filtra las columnas necesarias y lo sube a Redshift.
 - `mock_data_redshift`: Crea de forma aleatoria la información falsa _(mock)_ del proyecto, tomando hipótesis varias para dicha creación, de tal forma que haya correspondencia y cierta correlación entre las variables de las tablas. Este DAG está preparado para detectar 2 situaciones de interés:
     - Si no existe una tabla requerida, levanta un error.
-    - Si existe la tabla requerieda pero no está vacía, saltea todos los cálculos del task correspondiente.
-- `get_clima` (c/hora): Llama a la API de AccuWeather para pedir el detalle meteorológico actual de la Ciudad Autónoma de Buenos Aires (Argentina), lo transforma a tabla, filtra las columnas necesarias y lo sube a Redshift.
+    - Si existe la tabla requerieda pero no está vacía, saltea todos los cálculos del task correspondiente. (Por un problema con el nombre del .)
+- `mock_new_viajes`: Reutilización del código de las tasks de `viajes` y `viajes_eventos` para la creación de más viajes.
 
 <img src="docs/airflow_dags.png" alt="Airflow - DAGs del proyecto"></img>
 
 El camino usual es:
 1. `create_database`
 2. `mock_data_redshift`
+3. `mock_new_viajes` (pueden ser múltiples veces)
 
 Para el desarrollador: ante cualquier inconveniente que no pueda ser resuelto por debuguear `mock_data_redshift`, usar `drop_database` y volver a correr los DAGs 1 y 2.
 
@@ -108,6 +110,11 @@ Para las tablas de clima en CABA hemos propuesto la siguiente estructura:
 - `clima`: Registra cada 1 hora el clima en CABA según los datos de la API de AccuWeather. No sólo guardamos la `temperatura_c` _(temperatura en Celsius)_, sino otros factores que nos pueden ser de interés analítico como la `humedad_relativa_pp` _(humedad relativa en puntos porcentuales 0-100)_, la `precipitacion_mm`, el `indice_uv`, etc.
 
 <img src="docs/clima_ER.png" alt="Diagrama de relaciones entre entidades (DER) de clima"></img>
+
+Adicionalmente, hay una tabla analítica que une a estos 2 DER:
+- `viajes_analisis`: Representa una tabla resultado de una query analítica, como una que se usaría en la práctica para tratar de relacionar -en este caso- el clima de la hora correspondiente con varios indicadores operativos y de negocio. Relaciona `viajes` con `clima`.
+
+<img src="docs/viajes_analisis_ER.png" alt="Tabla viajes_analisis"></img>
 
 ### Airflow
 

@@ -3,7 +3,10 @@ import logging
 import numpy as np
 from random import randint
 import pandas as pd
+from sqlalchemy import create_engine
 
+from code.database import REDSHIFT_CONN_STR
+from code.database_funcs import get_max_id
 from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TRIP_END
 
@@ -204,11 +207,13 @@ def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
 def merge_drivers_usuarios(
     drivers: pd.DataFrame,
     usuarios: pd.DataFrame,
+    max_id: int | None,
 ) -> pd.DataFrame:
     """Merge drivers and users for the mock_viajes task."""
     d = drivers.shape[0]
     u = usuarios.shape[0]
     assert d == u, f"The rows don't match: {d} in drivers vs. {u} in usuarios"
+
     viajes = pd.concat((drivers, usuarios), axis=1)
     viajes = pd.concat(
         (
@@ -217,16 +222,28 @@ def merge_drivers_usuarios(
         ),
         axis=1,
     )
+
     viajes = viajes.sort_values("tiempo_inicio", ignore_index=True)
-    viajes["id"] = range(viajes.shape[0])
+    viajes["id"] = (
+        range(viajes.shape[0])
+        if max_id is None
+        else range(max_id + 1, max_id + 1 + viajes.shape[0])
+    )
+
     return viajes
 
 
 # * High level function
 
 
-def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
+def mock_viajes_hlf(path_usuarios: str, path_drivers: str, append: bool = False) -> pd.DataFrame:
     """High level function for the mocking of viajes."""
+    if append:
+        engine = create_engine(REDSHIFT_CONN_STR)
+        max_id = get_max_id(engine, "viajes")
+    else:
+        max_id = None
+
     usuarios = get_usuarios(path_usuarios)
     n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])  # ! both inclusive
     logging.info(f"usuarios: {usuarios.shape[0]}")
@@ -235,7 +252,7 @@ def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
     usuarios = preprocess_usuarios(usuarios, n_extra_viajes)
     drivers = get_preprocess_drivers(path_drivers, usuarios.shape[0])
 
-    viajes = merge_drivers_usuarios(drivers, usuarios)
+    viajes = merge_drivers_usuarios(drivers, usuarios, max_id=max_id)
     del drivers, usuarios
 
     return viajes

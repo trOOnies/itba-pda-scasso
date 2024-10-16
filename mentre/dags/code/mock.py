@@ -25,7 +25,13 @@ def save_to_sql(df: pd.DataFrame, table_name: str, engine) -> None:
     logging.info(f"Transformed data loaded into Redshift in table '{table_name}'")
 
 
-def save_mock(df: pd.DataFrame, table_name: str, engine, append: bool = False) -> str:
+def save_mock(
+    df: pd.DataFrame,
+    table_name: str,
+    engine,
+    append: bool = False,
+    to_sql: bool = True,
+) -> str:
     """Save mock data to local CSV folder and to SQL."""
     path = f"local/mocked_{table_name}.csv"
 
@@ -34,7 +40,8 @@ def save_mock(df: pd.DataFrame, table_name: str, engine, append: bool = False) -
     else:
         df.to_csv(path, index=False)
 
-    save_to_sql(df, table_name, engine)
+    if to_sql:
+        save_to_sql(df, table_name, engine)
     return path
 
 

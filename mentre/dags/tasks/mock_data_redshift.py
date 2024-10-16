@@ -50,13 +50,13 @@ def get_mock_viajes(append: bool):
         path_drivers = kwargs["ti"].xcom_pull(task_ids="mock_drivers")
         path_usuarios = kwargs["ti"].xcom_pull(task_ids="mock_usuarios")
 
-        viajes = mock_viajes_hlf(path_usuarios, path_drivers)
+        viajes = mock_viajes_hlf(path_usuarios, path_drivers, append=append)
 
         # First append new data, then save appended data separately
         # If appending, return only new data path, else return the complete data path
         path = save_mock(viajes, "viajes", engine, append=append)
         if append:
-            path_append = save_mock(viajes, "viajes_append", engine, append=False)
+            path_append = save_mock(viajes, "viajes_append", engine, append=False, to_sql=False)
             return path_append
         else:
             return path
@@ -117,13 +117,13 @@ def mock_clima(**kwargs) -> None:
 
 def check_viajes_analisis() -> str | None:
     engine = create_engine(REDSHIFT_CONN_STR)
-    path = check_mock_is_full(
+    return check_mock_is_full(
         engine,
         "viajes_analisis", 
         is_fixed_table=False, 
         check_local_csv=False,
+        count_not_exists_as_empty=True,
     )
-    return isinstance(path, str)  # eq. to is_full
 
 
 def viajes_analisis_is_full(**kwargs) -> str:
