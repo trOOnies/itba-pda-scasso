@@ -6,7 +6,7 @@ and the class professors.
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-from code.database_funcs import select_query
+from code.database_funcs import ddl_query, select_query
 from tasks.mock_data_redshift import (
     mock_clima,
     mock_clima_id,
@@ -54,6 +54,11 @@ with DAG(
         python_callable=mock_clima,
     )
 
+    mock_viajes_analisis_task = PythonOperator(
+        task_id="mock_viajes_analisis",
+        python_callable=ddl_query("create", "viajes_analisis.sql"),
+    )
+
     # Task dependencies
 
     (
@@ -61,5 +66,5 @@ with DAG(
         >> [mock_drivers_task, mock_usuarios_task]
         >> mock_viajes_task
     )
-    mock_viajes_task >> [mock_viajes_eventos_task, mock_clima_task]
+    mock_viajes_task >> [mock_viajes_eventos_task, mock_clima_task] >> mock_viajes_analisis_task
     try_redshift_connection_task >> mock_clima_id_task >> mock_clima_task

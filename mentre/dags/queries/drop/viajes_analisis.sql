@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS "{DB_SCHEMA}".viajes_analisis;

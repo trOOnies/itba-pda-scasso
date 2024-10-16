@@ -44,6 +44,7 @@ with DAG(
     )
 
     # Task dependencies
+    # NOTE: Table 'viajes_analisis' is created directly in the mocking DAG
 
     try_redshift_connection_task >> create_clima_id_task >> create_clima_task
     (

@@ -4,7 +4,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 from code.database import REDSHIFT_CONN_STR
-from code.database_funcs import check_mock_is_full
+from code.database_funcs import check_mock_is_full, execute_query
 from code.mock import mock_base, save_mock, save_to_sql
 from code.mock_clima import mock_clima_hlf
 from code.mock_people import mock_drivers_f, mock_usuarios_f
@@ -83,7 +83,7 @@ def mock_clima_id() -> str:
 @start_end_log("MOCK CLIMA")
 def mock_clima(**kwargs) -> None:
     engine = create_engine(REDSHIFT_CONN_STR)
-    path = check_mock_is_full(engine, "clima", is_fixed_table=True)
+    path = check_mock_is_full(engine, "clima", is_fixed_table=False)
     if path is not None:
         return
 
