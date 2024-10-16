@@ -21,7 +21,7 @@ def get_mask_man(gender_ser: pd.Series, men_name_nb_proba: float) -> np.ndarray:
     mocking process.
     """
     is_male = (gender_ser == "M").values
-    is_nb   = (gender_ser == "X").values
+    is_nb = (gender_ser == "X").values
 
     # Border cases
     if isclose(men_name_nb_proba, 1.00):
@@ -30,9 +30,9 @@ def get_mask_man(gender_ser: pd.Series, men_name_nb_proba: float) -> np.ndarray:
         return is_male.astype(int)
 
     # Inside cases
-    assert (0.00 < men_name_nb_proba) and (men_name_nb_proba < 1.00), (
-        "'men_name_nb_pc' value must be between 0.00 and 1.00 (both inclusive)."
-    )
+    assert (0.00 < men_name_nb_proba) and (
+        men_name_nb_proba < 1.00
+    ), "'men_name_nb_pc' value must be between 0.00 and 1.00 (both inclusive)."
 
     n = gender_ser.shape[0]
     non_binary_w_men_name = np.random.random(n)
@@ -48,14 +48,15 @@ def get_mask_man(gender_ser: pd.Series, men_name_nb_proba: float) -> np.ndarray:
 
 def process_names(df: pd.DataFrame) -> np.ndarray:
     n = df.shape[0]
-    
+
     mixed_names = np.vstack(
         (
             get_random_names("mujeres", n).values,
             get_random_names("hombres", n).values,
         )
     )
-    assert mixed_names.shape == (2, n), f"Invalid shape: {mixed_names.shape} (exp={(2, n)})"
+    sh = mixed_names.shape
+    assert sh == (2, n), f"Invalid shape: {sh} (exp={(2, n)})"
 
     mask_man = get_mask_man(df["genero"], 0.50)
 
@@ -92,7 +93,11 @@ def mock_people(n: int, m_thresh: float, f_thresh: float) -> pd.DataFrame:
     assert f_thresh < 1.00
 
     df = pd.DataFrame(
-        random_categories_array(n, {"M": m_thresh, "F": f_thresh, "X": 1.00}, cat_to_id=None),
+        random_categories_array(
+            n,
+            {"M": m_thresh, "F": f_thresh, "X": 1.00},
+            cat_to_id=None,
+        ),
         columns=["genero"],
     )
     df["nombre"] = process_names(df)
@@ -104,7 +109,7 @@ def mock_people(n: int, m_thresh: float, f_thresh: float) -> pd.DataFrame:
 
 
 def mock_ids(v_min: int, v_max: int, size: int) -> np.ndarray:
-    """Mock non-repeating ids. Both ends are inclusive."""
+    """Mock non-repeating ids. v_min inclusve, v_max exclusive."""
     while True:
         ids = np.random.randint(v_min, v_max, size=size)
         if np.unique(ids).size == size:

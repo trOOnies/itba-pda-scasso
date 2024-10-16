@@ -10,6 +10,8 @@ with DAG(
     "create_db_redshift",
     description="Create the necessary tables for Mentre in Redshift",
 ) as dag:
+    # Tasks
+
     try_redshift_connection_task = PythonOperator(
         task_id="try_redshift_connection_task",
         python_callable=select_query("tables.sql"),
@@ -41,6 +43,13 @@ with DAG(
         python_callable=ddl_query("create", "clima.sql"),
     )
 
+    # Task dependencies
+    # NOTE: Table 'viajes_analisis' is created directly in the mocking DAG
+
     try_redshift_connection_task >> create_clima_id_task >> create_clima_task
-    try_redshift_connection_task >> [create_drivers_task, create_usuarios_task] >> create_viajes_task
+    (
+        try_redshift_connection_task
+        >> [create_drivers_task, create_usuarios_task]
+        >> create_viajes_task
+    )
     create_viajes_task >> create_viajes_eventos_task

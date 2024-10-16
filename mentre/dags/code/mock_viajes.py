@@ -3,7 +3,10 @@ import logging
 import numpy as np
 from random import randint
 import pandas as pd
+from sqlalchemy import create_engine
 
+from code.database import REDSHIFT_CONN_STR
+from code.database_funcs import get_max_id
 from code.utils import random_categories_array
 from options import TIPO_CATEGORIA, TRIP_END
 
@@ -66,17 +69,21 @@ def mock_timestamps(closed_col: pd.Series) -> pd.DataFrame:
     df = pd.DataFrame(
         (
             np.full(n, dt.datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc))
-            + pd.to_timedelta(np.random.randint(0, 119, n), unit="days")
-            + pd.to_timedelta(np.random.randint(0, 23, n), unit="hr")
-            + pd.to_timedelta(np.random.randint(0, 59, n), unit="min")
-            + pd.to_timedelta(np.random.randint(0, 59, n), unit="sec")
+            + pd.to_timedelta(np.random.randint(0, 120, n), unit="days")
+            + pd.to_timedelta(np.random.randint(0, 24, n), unit="hr")
+            + pd.to_timedelta(np.random.randint(0, 60, n), unit="min")
+            + pd.to_timedelta(np.random.randint(0, 60, n), unit="sec")
         ),
         columns=["tiempo_inicio"],
     )
 
     df.loc[:, "duracion_viaje_seg"] = None
     df.loc[:, "tiempo_fin"] = None
-    df["duracion_viaje_seg"][closed_col] = np.random.randint(120, 3600, closed_col.sum())
+    df["duracion_viaje_seg"][closed_col] = np.random.randint(
+        120,
+        3601,
+        closed_col.sum(),
+    )
     df["tiempo_fin"][closed_col] = df["tiempo_inicio"][closed_col] + pd.to_timedelta(
         df["duracion_viaje_seg"][closed_col],
         unit="sec",
@@ -95,7 +102,9 @@ def mock_financials(distance_m: pd.Series, is_comfort: pd.Series) -> pd.DataFram
     assert is_comfort.size == n
 
     df = pd.DataFrame(distance_m.rename("precio_bruto_usuario") * 1.50)
-    df["precio_bruto_usuario"] = df["precio_bruto_usuario"] * (1.00 + is_comfort.astype(int) * 0.15)
+    df["precio_bruto_usuario"] = df["precio_bruto_usuario"] * (
+        1.00 + is_comfort.astype(int) * 0.15
+    )
     df["precio_bruto_usuario"] += 1.0
 
     df["descuento_pc"] = random_categories_array(
@@ -195,11 +204,16 @@ def mock_viajes_f(is_comfort: pd.Series) -> pd.DataFrame:
     return df
 
 
-def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.DataFrame:
+def merge_drivers_usuarios(
+    drivers: pd.DataFrame,
+    usuarios: pd.DataFrame,
+    max_id: int | None,
+) -> pd.DataFrame:
     """Merge drivers and users for the mock_viajes task."""
-    assert drivers.shape[0] == usuarios.shape[0], (
-        f"The rows don't match: {drivers.shape[0]} in drivers vs. {usuarios.shape[0]} in usuarios"
-    )
+    d = drivers.shape[0]
+    u = usuarios.shape[0]
+    assert d == u, f"The rows don't match: {d} in drivers vs. {u} in usuarios"
+
     viajes = pd.concat((drivers, usuarios), axis=1)
     viajes = pd.concat(
         (
@@ -208,25 +222,37 @@ def merge_drivers_usuarios(drivers: pd.DataFrame, usuarios: pd.DataFrame) -> pd.
         ),
         axis=1,
     )
+
     viajes = viajes.sort_values("tiempo_inicio", ignore_index=True)
-    viajes["id"] = range(viajes.shape[0])
+    viajes["id"] = (
+        range(viajes.shape[0])
+        if max_id is None
+        else range(max_id + 1, max_id + 1 + viajes.shape[0])
+    )
+
     return viajes
 
 
 # * High level function
 
 
-def mock_viajes_hlf(path_usuarios: str, path_drivers: str) -> pd.DataFrame:
+def mock_viajes_hlf(path_usuarios: str, path_drivers: str, append: bool = False) -> pd.DataFrame:
     """High level function for the mocking of viajes."""
+    if append:
+        engine = create_engine(REDSHIFT_CONN_STR)
+        max_id = get_max_id(engine, "viajes")
+    else:
+        max_id = None
+
     usuarios = get_usuarios(path_usuarios)
-    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])
+    n_extra_viajes = randint(usuarios.shape[0], 2 * usuarios.shape[0])  # ! both inclusive
     logging.info(f"usuarios: {usuarios.shape[0]}")
     logging.info(f"n_extra_viajes: {n_extra_viajes}")
 
     usuarios = preprocess_usuarios(usuarios, n_extra_viajes)
     drivers = get_preprocess_drivers(path_drivers, usuarios.shape[0])
 
-    viajes = merge_drivers_usuarios(drivers, usuarios)
+    viajes = merge_drivers_usuarios(drivers, usuarios, max_id=max_id)
     del drivers, usuarios
 
     return viajes

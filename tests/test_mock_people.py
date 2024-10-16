@@ -19,7 +19,8 @@ class TestMockPeople:
         assert get_mask_man(gender_ser, 1.00).sum() == 20_000
         assert get_mask_man(gender_ser, 0.00).sum() == 10_000
         assert (
-            get_mask_man(gender_ser, 0.001).sum() < get_mask_man(gender_ser, 0.999).sum()
+            get_mask_man(gender_ser, 0.001).sum()
+            < get_mask_man(gender_ser, 0.999).sum()
         )
         mask_man_sum = get_mask_man(gender_ser, 0.50).sum()
         assert (10_000 < mask_man_sum) and (mask_man_sum < 20_000)
