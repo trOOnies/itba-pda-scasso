@@ -89,7 +89,10 @@ def select_query(filename: str):
 
 
 def check_mock_is_full(
-    engine, table_name: str, is_fixed_table: bool = False
+    engine,
+    table_name: str,
+    is_fixed_table: bool = False,
+    check_local_csv: bool = True,
 ) -> str | None:
     """Check if the existing table is full.
 
@@ -107,6 +110,9 @@ def check_mock_is_full(
         logging.info(
             f"The table '{table_name}' exists and it's already full. Skipping data creation."
         )
+
+        if not check_local_csv:
+            return "fake/path"
 
         path = (
             f"tables/{table_name}.csv"

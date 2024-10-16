@@ -93,3 +93,19 @@ def mock_clima(**kwargs) -> None:
     clima = mock_clima_hlf(path_clima_id, path_viajes)
 
     save_mock(clima, "clima", engine)
+
+
+def check_viajes_analisis() -> str | None:
+    engine = create_engine(REDSHIFT_CONN_STR)
+    path = check_mock_is_full(
+        engine,
+        "viajes_analisis", 
+        is_fixed_table=False, 
+        check_local_csv=False,
+    )
+    return isinstance(path, str)  # eq. to is_full
+
+
+def viajes_analisis_is_full(**kwargs) -> str:
+    path = kwargs["ti"].xcom_pull(task_ids="check_viajes_analisis")
+    return "va_is_full" if isinstance(path, str) else "va_is_empty"
