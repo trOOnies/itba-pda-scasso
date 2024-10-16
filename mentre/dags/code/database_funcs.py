@@ -15,6 +15,14 @@ if TYPE_CHECKING:
 KEYWORDS_PATT = re.compile(r"\{[A-Z\_]+\}")
 
 
+def parse_prev_kwargs(query: str, prev_kwargs: dict[str, str] | None) -> str:
+    """Replace kwargs in the query previous to replacing env vars."""
+    if prev_kwargs is not None:
+        for old, new in prev_kwargs.items():
+            query = query.replace("{" + old + "}", new)
+    return query
+
+
 def execute_query(
     engine,
     statement: str,
@@ -24,10 +32,8 @@ def execute_query(
     """NOTE: Validation must have been made before running this function."""
     with open(f"queries/{statement}/{filename}") as f:
         query = f.read()
-    if prev_kwargs is not None:
-        for old, new in prev_kwargs.items():
-            query = query.replace("{" + old + "}", new)
 
+    query = parse_prev_kwargs(query, prev_kwargs)
     keywords = KEYWORDS_PATT.findall(query)
     if keywords:
         query = query.format(**{k[1:-1]: os.environ[k[1:-1]] for k in keywords})
